@@ -1,0 +1,2157 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Analiz Değerlendirme Formu v1.8.0 (İyileştirmeler Eklendi)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#f8f9fa; --panel-bg:#ffffff; --text:#212529; --muted:#6c757d; --border:#dee2e6; --danger:#dc3545; --warning:#ffc107; --success:#28a745;
+      --accent:#0078D4; --accent-hover:#0098ff; --accent-glow:rgba(0,120,212,.22);
+      --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+      --hb-h:60px;
+    }
+    body.theme-yellow{
+      --bg:#fffef7; --panel-bg:#ffffff; --text:#1f2330; --muted:#68707f; --border:#e8e3c9;
+      --accent:#1A2B6B; --accent-hover:#233a8f; --accent-glow:rgba(26,43,107,.22);
+    }
+
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes panel-in{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+    
+    /* DEĞİŞİKLİK: Puan güncellemeleri için görsel geri bildirim animasyonu */
+    @keyframes highlight-fade {
+        from { background-color: var(--warning); }
+        to { background-color: transparent; }
+    }
+    .highlight {
+        animation: highlight-fade 1.2s ease-out;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:'Lexend',sans-serif;overflow:clip;min-height:100dvh}
+    
+    .headerbar{position:sticky;top:0;z-index:10;height:var(--hb-h);
+      display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+      align-items:center;background:var(--panel-bg);border-bottom:1px solid var(--border);padding:0 12px}
+    .hb-left{display:flex;align-items:center;gap:8px}
+    .hb-left img{height:36px}
+    .hb-center{text-align:center;font-weight:700}
+    .hb-right{display:flex;align-items:center;justify-content:flex-end;gap:10px}
+    .hb-right .dept{color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40ch}
+
+    .neural-hub-container{
+      display:grid;
+      grid-template-columns:
+        clamp(180px, 15vw, 220px)
+        minmax(0, 1fr)
+        clamp(280px, 22vw, 360px);
+      height:calc(100dvh - var(--hb-h));
+      padding:16px;
+      gap:12px;
+      animation: fadeIn 0.8s ease-out;
+    }
+    .hub-column{display:flex;flex-direction:column;gap:12px;height:100%;min-height:0}
+    .hub-panel{background:var(--panel-bg);border:1px solid var(--border);border-radius:16px;padding:24px;display:flex;flex-direction:column;box-shadow:0 4px 12px rgba(0,0,0,0.05);min-height:0}
+
+    .active-panel{max-width:none;margin-inline:0;width:100%;justify-self:stretch}
+
+    .timeline-nav{list-style:none;padding:0;margin:0}
+    .timeline-node{
+      width:100%;text-align:left;background:none;border:0;
+      padding:12px 16px;margin-bottom:8px;border-radius:10px;
+      color:var(--muted);font-weight:500;cursor:pointer;transition:all .2s;border-left:3px solid transparent;display:flex;align-items:center
+    }
+    .timeline-node:hover{background:#f1f3f5;color:var(--text)}
+    .timeline-node.active{color:var(--accent);font-weight:600;background:rgba(0,0,0,.03);border-left-color:var(--accent)}
+    .timeline-node.completed{color:#495057}
+
+    .stage{display:none;animation:panel-in .5s ease-out}
+    .stage.active{display:grid;grid-template-rows:auto 1fr auto;height:100%;min-height:0}
+    .active-panel h2{margin:0;padding:12px 0;font-size:24px;font-weight:600;color:var(--accent);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2;background:var(--panel-bg);display:flex;align-items:baseline;gap:8px}
+    .step-badge{font-size:12px;font-weight:700;background:var(--accent);color:#fff;padding:4px 8px;border-radius:999px;line-height:1}
+
+    .stage-content{min-height:0;overflow-y:auto;padding-right:10px}
+    .stage-content::-webkit-scrollbar{width:6px}
+    .stage-content::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    *{scrollbar-color:var(--border) transparent}
+
+    label{font-weight:600;color:var(--muted);display:block;margin:18px 0 8px}
+    .req{color:var(--danger);margin-left:4px}
+    .hint{color:var(--muted);font-size:12px;margin-top:6px}
+    .error{color:var(--danger);font-size:12px;margin-top:6px}
+    .error.success{color:var(--success);}
+
+    input,select,textarea{width:100%;padding:14px;border:1px solid var(--border);border-radius:10px;font-size:15px;background:#fdfdfe;color:var(--text);font-family:'Lexend',sans-serif}
+    textarea{min-height:120px;resize:vertical}
+    input[type="number"] { padding: 8px; text-align: center; }
+    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+
+    .editable-area {
+      min-height: 80px;
+      resize: vertical;
+      line-height: 1.5;
+      margin-top: 4px;
+    }
+
+    .stage-footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);position:sticky;bottom:0;z-index:2;background:var(--panel-bg)}
+    button{padding:12px 24px;border:1px solid var(--border);border-radius:10px;cursor:pointer;font-weight:600;font-size:15px;transition:all .2s;background:#f8f9fa;color:#495057}
+    button:not(.btn-primary):hover{border-color:var(--accent);color:var(--accent)}
+    .btn-primary,.btn-primary:hover,.btn-primary:focus{background:var(--accent);color:#fff;font-weight:700;border:none;text-shadow:0 1px 2px rgba(0,0,0,.2)}
+    .btn-primary:hover,.btn-primary:focus{transform:scale(1.02);box-shadow:0 0 20px var(--accent-glow)}
+    button:disabled{opacity:.6;cursor:not-allowed;transform:none!important;background-color:#e9ecef!important;color:var(--muted)!important;box-shadow:none!important}
+
+    .context-panel{flex-grow:1;min-height:0}
+    .context-panel #output{font-family:var(--mono);background:#e9ecef;color:#343a40;border-radius:12px;padding:16px;border:1px solid var(--border);white-space:pre-wrap;overflow:auto;height:100%;font-size:13px}
+
+    #stage-3 .stage-content{display:flex;flex-direction:column}
+    #stage-3 .field{flex:1;display:flex;flex-direction:column;min-height:0}
+    #gptResponse{
+      flex:1; min-height:420px; height:auto;
+      font-family:var(--mono); font-size:13px; line-height:1.45;
+      background:#0f172a; color:#e5e7eb; border-color:#1f2937;
+    }
+
+    #final-report-card .report-section{margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+    #final-report-card h3{color:var(--accent);margin-top:24px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+    #final-report-card table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
+    #final-report-card th,#final-report-card td{border:1px solid var(--border);padding:8px;text-align:left;vertical-align:top}
+    #final-report-card th{background-color:#f1f3f5; text-align: center;}
+    #final-report-card td:nth-child(2), #final-report-card td:nth-child(3) { text-align: center; }
+    .penalty-row { font-size: 12px; color: #b71c1c; background-color: #fff5f5; }
+    .penalty-row td { padding: 4px 8px; }
+    #finalScore {font-size: 24px; font-weight: 700; border-radius: 8px;}
+    
+    .report-logo-screen {
+        height: 40px;
+        margin-bottom: 16px;
+    }
+
+    .print-only-header { display: none; }
+    
+    .modal-overlay{position:fixed;inset:0;background:rgba(33,37,41,.5);display:flex;align-items:center;justify-content:center;z-index:1000;animation:fadeIn .3s ease-out}
+    .modal-content{background:var(--panel-bg);padding:24px;border-radius:16px;max-width:750px;width:90%;box-shadow:0 8px 24px rgba(0,0,0,.1);text-align:left;animation:panel-in .4s ease-out}
+    .modal-title{color:var(--accent);font-size:22px;margin:0 0 16px}.hidden{display:none!important}
+    .toast{position:fixed;right:16px;bottom:16px;z-index:2000;background:#101828;color:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.2)}
+
+    @page {
+        size: A4;
+        margin: 2cm;
+    }
+
+    @media print{
+      body{height:auto;overflow:visible;background:#fff; font-size: 11pt;}
+      .headerbar,.hub-column:nth-child(1),.hub-column:nth-child(3),.no-print,button,.timeline-node{display:none!important}
+      .neural-hub-container{display:block;height:auto;padding:0}
+      .hub-panel, .active-panel {box-shadow:none;border:none;padding:0}
+      .stage{display:block!important}
+      #stage-1,#stage-2,#stage-3{display:none!important}
+      #stage-4{display:block!important}
+      .stage-content{overflow:visible;height:auto;padding:0}
+
+      #stage-4 > h2 { display: none; }
+      .print-only-header {
+        display: block;
+        text-align: center;
+        margin-bottom: 2rem;
+        border-bottom: 2px solid var(--border);
+        padding-bottom: 1rem;
+      }
+      .print-only-header img { max-height: 50px; margin-bottom: 1rem; }
+      .print-only-header h1 { font-size: 22pt; margin: 0; color: #111; }
+      .print-only-header p { font-size: 14pt; margin: 4px 0 0; color: #666; }
+      
+      textarea, input {
+        border: 1px solid #ddd;
+        background-color: #fff;
+        white-space: pre-wrap;
+        -webkit-print-color-adjust: exact; 
+        print-color-adjust: exact;
+      }
+      label.no-print-label { display: none; }
+    }
+    @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+    @media (max-width:992px){
+      .neural-hub-container{grid-template-columns:1fr;height:auto;padding:10px}
+      .hub-column:nth-child(1),.hub-column:nth-child(3){display:none}
+      .hub-column{height:calc(100dvh - var(--hb-h))}
+    }
+  
+  .effect-row td{ background:#fff7ed; font-size:13px; border-top:0; }
+  .effect-row.pos td{ background:#ecfdf5; }
+  .effect-row.neg td{ background:#fff1f2; }
+  .mini-link{ font-size:12px; color:#6b7280; cursor:pointer; border:1px solid var(--border);
+              padding:2px 6px; border-radius:999px; display:inline-block; margin-top:6px; }
+  .mini-link:hover{ color:#2563eb; border-color:#94a3b8; }
+  /* DEĞİŞİKLİK: Onay butonu (tick) stilleri eklendi */
+  .mini-x, .mini-tick { border:1px solid; padding:2px 6px; border-radius:8px; cursor:pointer; margin-left: 6px; }
+  .mini-x { border-color:#fecaca; color:#b91c1c; }
+  .mini-x:hover { color:#7f1d1d; }
+  .mini-tick { border-color:#bbf7d0; color:#166534; }
+  .mini-tick:hover{ color:#14532d; }
+</style>
+<style id="jira-gadget-overrides">
+/* JIRA gadget (iframe) modunda otomatik yükseklik ve tam genişlik */
+.in-gadget html, .in-gadget body { height: auto !important; min-height: 0 !important; }
+.in-gadget body { overflow: visible !important; }
+.in-gadget .neural-hub-container,
+.in-gadget .app,
+.in-gadget .container,
+.in-gadget #root { height: auto !important; min-height: 0 !important; width: 100% !important; max-width: none !important; }
+.in-gadget .stage-content, 
+.in-gadget .content, 
+.in-gadget main { overflow: visible !important; }
+</style>
+
+
+<script id="gadget-core-loader">
+(function(){try{
+  function load(url){
+    return new Promise(function(resolve, reject){
+      var s = document.createElement('script');
+      s.src = url;
+      s.async = true;
+      s.onload = function(){ resolve(url); };
+      s.onerror = function(){ reject(url); };
+      document.head.appendChild(s);
+    });
+  }
+  function contextPrefix(){
+    try {
+      var p = location.pathname || '/';
+      var idx = p.indexOf('/plugins/servlet');
+      if (idx > 0) return p.slice(0, idx);
+    } catch(e){}
+    return '';
+  }
+  var prefix = contextPrefix();
+  var candidates = [
+    prefix + '/plugins/servlet/gadgets/js/core.js',
+    prefix + '/gadgets/js/core.js'
+  ];
+  (async function(){
+    for (var i=0;i<candidates.length;i++){
+      try { await load(candidates[i]); break; } catch(e){ /* try next */ }
+    }
+    if (window.__JiraGadgetAdjust) window.__JiraGadgetAdjust();
+  })();
+})();
+</script>
+
+
+<style id="jira-gadget-height-overrides">
+.in-gadget html, .in-gadget body { height: auto !important; min-height: 0 !important; }
+.in-gadget body { overflow: visible !important; }
+.in-gadget .neural-hub-container,
+.in-gadget .app, .in-gadget .container, .in-gadget #root,
+.in-gadget main, .in-gadget .stage-content, .in-gadget .content {
+  height: auto !important; min-height: 0 !important; width: 100% !important; max-width: none !important; overflow: visible !important;
+}
+</style>
+
+</head>
+
+<body class="theme-yellow">
+
+<header class="headerbar no-print">
+    <div class="hb-left">
+      <img src="https://m.enerjisa.com.tr/assets/img/enerjisa-logo.png" alt="Enerjisa Logo">
+    </div>
+    <div class="hb-center">İş Analizi Değerlendirme</div>
+    <div class="hb-right">
+      <span class="dept">İş Uygulamaları Müdürlüğü</span>
+      <button id="themeToggle" class="icon-btn" aria-label="Tema değiştir" title="Tema Değiştir">
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 18a6 6 0 0 1 0-12v12zM12 2v2m0 16v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2m16 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    </header>
+
+  <div class="neural-hub-container">
+    <div class="hub-column no-print">
+      <div class="hub-panel nav-panel">
+        <nav aria-label="Aşamalar">
+          <ol class="timeline-nav">
+            <li><button id="node-1" class="timeline-node active" data-stage="1" aria-current="step">1. Görev Tanımı</button></li>
+            <li><button id="node-2" class="timeline-node" data-stage="2">2. Değerlendirme Kapsamı</button></li>
+            <li><button id="node-3" class="timeline-node" data-stage="3">3. Yapay Zeka Analizi</button></li>
+            <li><button id="node-4" class="timeline-node" data-stage="4">4. Sonuç Raporu</button></li>
+          </ol>
+        </nav>
+      </div>
+    </div>
+
+    <div class="hub-column">
+      <div class="hub-panel active-panel">
+        <div id="stage-1" class="stage active">
+          <h2 tabindex="-1">1. Görev Tanımı <span class="step-badge">Adım 1/4</span></h2>
+          <div class="stage-content">
+            <label for="workMode">Çalışma Modu</label>
+            <select id="workMode">
+              <option value="detailed">Detaylı Puanlama</option>
+              <option value="quick">Hızlı Geri Bildirim</option>
+            </select>
+            <label for="analistAdi">Analist <span class="req">*</span></label>
+            <input id="analistAdi" type="text" placeholder="Analistin Adı Soyadı" />
+            <div class="hint">Adınız raporda görünecek.</div>
+            <div id="detailed-inputs">
+              <label for="talepNo">Talep No</label>
+              <input id="talepNo" type="text" placeholder="İlgili talep numarası (örn: JIRA-123)" />
+              <label for="talepAdi">Talep Adı <span class="req">*</span></label>
+              <input id="talepAdi" type="text" placeholder="Geliştirme talebinin başlığı" />
+              <label for="talep">Talep (Metin) <span class="req">*</span></label>
+              <textarea id="talep" placeholder="Talep metni..."></textarea>
+              <div class="hint">En az 10 kelime önerilir.</div>
+            </div>
+            <label for="analiz">Analiz (Metin) <span class="req">*</span></label>
+            <textarea id="analiz" placeholder="Analiz metni..."></textarea>
+            <div class="hint">En az 10 kelime girin.</div>
+          </div>
+          <div class="stage-footer">
+            <button id="sampleBtn" type="button">Örnek Doldur</button>
+            <button id="next-to-2" type="button" class="btn-primary">İleri: Kapsam →</button>
+          </div>
+        </div>
+
+        <div id="stage-2" class="stage">
+          <h2 tabindex="-1">2. Değerlendirme Kapsamı <span class="step-badge">Adım 2/4</span></h2>
+          <div class="stage-content">
+            <div id="detailed-options">
+              <label for="spDegeri">Story Point (SP)</label>
+              <select id="spDegeri">
+                <option value="0,5">0,5</option><option value="1">1</option><option value="3">3</option>
+                <option value="5">5</option><option value="8">8</option><option value="13">13</option>
+              </select>
+              <label for="raporModu">Rapor Modu</label>
+              <select id="raporModu">
+                <option value="standard">Standart</option>
+                <option value="brief">Kısa</option>
+                <option value="strict">Sert</option>
+              </select>
+              <label for="moduleSelect">Modül Bağlamı</label>
+              <select id="moduleSelect">
+                <option value="">Genel</option><option value="CRM-B2B">CRM-B2B</option><option value="CRM-B2C">CRM-B2C</option>
+              </select>
+              <label for="flowQuality">Akış/Model Kalitesi</label>
+              <select id="flowQuality">
+                  <option value="yok">Yok</option>
+                  <option value="zayif">Zayıf / Anlaşılmaz</option>
+                  <option value="yeterli">Yeterli / Anlaşılır</option>
+                  <option value="detayli">Detaylı / Kapsamlı</option>
+              </select>
+              <label for="docStatus">Doküman Durumu</label>
+              <select id="docStatus">
+                  <option value="taslak">Taslak</option>
+                  <option value="gozden-gecirildi">Gözden Geçirildi</option>
+                  <option value="onaylandi">Onaylandı</option>
+              </select>
+            </div>
+            <div id="quick-options" style="display:none">
+              <label for="gbMode">Geri Bildirim Modu</label>
+              <select id="gbMode">
+                <option value="neutral">Dengeli / Nötr</option>
+                <option value="kind">Nazik / Koçluk</option>
+                <option value="direct">Doğrudan / Net</option>
+              </select>
+              <label for="gbFocus">Odak</label>
+              <select id="gbFocus">
+                <option value="rewrite">Yeniden Yazım + Not</option>
+                <option value="justFeedback">Sadece Geri Bildirim Notu</option>
+                <option value="checklist">Madde Madde Kontrol</option>
+              </select>
+            </div>
+          </div>
+          <div class="stage-footer">
+            <button id="prev-to-1" type="button">← Geri: Tanım</button>
+            <button id="copyBtn" type="button" style="display: none;">Promptu Kopyala</button>
+            <button id="next-to-3" type="button" class="btn-primary">İleri: Analiz →</button>
+          </div>
+        </div>
+
+        <div id="stage-3" class="stage">
+          <h2 tabindex="-1">3. Yapay Zeka Analizi <span class="step-badge">Adım 3/4</span></h2>
+          <div class="stage-content">
+            <div class="field">
+              <label for="gptResponse">AI JSON Cevabı</label>
+              <textarea id="gptResponse" placeholder="AI'dan gelen raporun SADECE JSON bloğunu veya metnin tamamını buraya yapıştırın..."></textarea>
+              <div id="parsing-error" class="error" aria-live="polite" style="margin-top:10px;"></div>
+            </div>
+          </div>
+          <div class="stage-footer">
+            <button id="prev-to-2" type="button">← Geri: Kapsam</button>
+            <button id="next-to-4" type="button" class="btn-primary">Raporu Oluştur →</button>
+          </div>
+        </div>
+
+        <div id="stage-4" class="stage">
+          <h2 tabindex="-1">4. Sonuç Raporu <span class="step-badge">Adım 4/4</span></h2>
+          <div id="final-report-card" class="stage-content">Rapor burada görünecek...</div>
+          <div class="stage-footer no-print">
+            <button id="prev-to-3" type="button">← Geri: Analiz</button>
+            <button id="printBtn" type="button" class="btn-primary">Yazdır / PDF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hub-column no-print">
+      <div class="hub-panel context-panel">
+        <div id="output">Sağ panel içerik burada güncellenecek…</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="custom-alert-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-content" role="document">
+      <h3 id="modal-title" class="modal-title">Uyarı</h3>
+      <p id="modal-message"></p>
+      <div class="modal-footer"><button id="modal-ok-btn" class="btn-primary" type="button">Tamam</button></div>
+    </div>
+  </div>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite">Kopyalandı!</div>
+
+  <script>
+    /* ====== DURUM ve KISA YARDIMCILAR ====== */
+    const State = { currentStage: 1, app: {}, focusMemory: { opener: null } };
+    State.$ = (id) => document.getElementById(id);
+    State.esc = (s) => String(s || "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])) ;
+
+    /* ====== SABİTLER ====== */
+    const MIN_WORD_COUNT = 10;
+    const DRAFT_KEY = "degerlendirme_studyo_draft_v2"; // DEĞİŞİKLİK: Yeni anahtar
+
+    const SP_RUBRICS = {
+      "0,5":[["Problemin Tanımı & İş Değeri",30],["Kabul Kriterleri / Testlenebilirlik",40],["İzlenebilirlik & Kapsam",20],["NFR (Genel Uyum)",10]],
+      "1":[["Problemin Tanımı & İş Değeri",25],["Fonksiyonel Gereksinimler",25],["Kabul Kriterleri / Testlenebilirlik",30],["İş Kuralları & Kısıtlar",10],["NFR (Genel Uyum)",10]],
+      "3":[["Problemin Tanımı & İş Değeri",15],["Varsayımlar / Bilgi Toplama",10],["Fonksiyonel Gereksinimler",25],["İş Kuralları & Kısıtlar",10],["Alternatif Akışlar",10],["Kabul Kriterleri / Testlenebilirlik",20],["NFR (Genel Uyum)",10]],
+      "5":[["Problemin Tanımı & İş Değeri",10],["Varsayımlar / Bilgi Toplama",10],["Fonksiyonel Gereksinimler",20],["İş Kuralları & Kısıtlar",10],["Akış/Model Artefaktı",10],["Etki Analizi",10],["Kabul Kriterleri / Testlenebilirlik",20],["NFR (Genel Uyum)",10]],
+      "8":[["Problemin Tanımı & İş Değeri",8],["Varsayımlar / Bilgi Toplama",8],["Fonksiyonel Gereksinimler",18],["İş Kuralları & Kısıtlar",8],["Model/BPMN/Data Model",15],["Entegrasyon & Veri Sözlüğü",13],["Kabul Kriterleri / Testlenebilirlik",15],["NFR (Ölçülebilir)",15]],
+      "13":[["Problemin Tanımı & İş Değeri",6],["Varsayımlar / Bilgi Toplama",8],["Fonksiyonel Gereksinimler",16],["İş Kuralları & Kısıtlar",8],["Model/BPMN/Data Model",18],["Entegrasyon & Sistemler",14],["Riskler & Bağımlılıklar",10],["İzlenebilirlik & Kapsam",10],["NFR & SLA (Ölçülebilir)",10]]
+    };
+
+    const ANTI_PATTERNS_DATABASE = [
+      { id:"P&S-1",category:"Problem & Kapsam",minSP:0.5,pattern:"Belirsiz problem/amaç: İş değeri ve başarı ölçütleri net değil." },
+      { id:"P&S-2",category:"Problem & Kapsam",minSP:1,pattern:"Scope creep riski: Dahil/haric sınırları tanımlı değil." },
+      { id:"REQ-4",category:"Fonksiyonel Gereksinimler",minSP:0.5,pattern:"Kabul kriteri yok/zayıf: Teste uygun değil." },
+      { id:"REQ-5",category:"Fonksiyonel Gereksinimler",minSP:1,pattern:"Sadece mutlu akış: Hata/istisna yok." },
+      { id:"NFR-1",category:"Kalite Hedefleri",minSP:3,pattern:"Ölçüsüz NFR: Sayı yok." },
+      { id:"MDL-1",category:"Model & Veri",minSP:5,pattern:"Metin–çizim uyumsuzluğu." }
+    ];
+
+    const MODULE_GUIDES = {
+        "CRM-B2B": "B2B modülü için, müşteri hiyerarşisi, özel fiyatlandırma anlaşmaları ve satış temsilcisi rolleri gibi konulara özellikle dikkat edilmelidir.",
+        "CRM-B2C": "B2C modülü için, bireysel müşteri verilerinin gizliliği (KVKK), kampanya yönetimi ve müşteri segmentasyonu gibi konular önceliklidir."
+    };
+    
+    /* DEĞİŞİKLİK: Madde 3 - Otomatik Kayıt için yeni bir modül */
+    const AutoSaver = {
+      timeoutId: null,
+      isDirty: false,
+      start() {
+        if (this.timeoutId) this.stop();
+        this.timeoutId = setInterval(() => {
+          if (this.isDirty) {
+            this.save();
+            this.isDirty = false;
+          }
+        }, 10000); // 10 saniyede bir kaydet
+        console.log("AutoSaver started.");
+      },
+      stop() {
+        clearInterval(this.timeoutId);
+        this.timeoutId = null;
+        console.log("AutoSaver stopped.");
+      },
+      save() {
+        if (State.currentStage !== 4) return;
+        const reportState = captureReportState();
+        if (!reportState) return;
+        try {
+          localStorage.setItem(DRAFT_KEY, JSON.stringify(reportState));
+          showToast("Rapor otomatik kaydedildi.");
+        } catch(e) { console.error("Auto-save failed:", e); }
+      },
+      markDirty() { this.isDirty = true; },
+      load() {
+        try {
+          const raw = localStorage.getItem(DRAFT_KEY);
+          if (!raw) return null;
+          return JSON.parse(raw);
+        } catch(e) {
+          console.error("Failed to load draft:", e);
+          return null;
+        }
+      }
+    };
+
+    /* ====== YARDIMCI FONKSİYONLAR ====== */
+    function spToNumber(s) {
+        if (!s) return 0;
+        return parseFloat(String(s).replace(',', '.'));
+    }
+
+    function buildScoreTableText(sp) {
+        const rubric = SP_RUBRICS[sp];
+        if (!rubric) return "Belirtilen SP için puanlama kriteri bulunamadı.";
+        return rubric.map(([name, weight]) => `- ${name} (${weight} puan)`).join('\n');
+    }
+
+    function bindAutoGrowTextareas(scope=document){
+      try {
+        (scope.querySelectorAll('textarea') || []).forEach(t => {
+          const grow=()=>{t.style.height='auto';t.style.height=(t.scrollHeight)+'px';};
+          t.addEventListener('input',grow);
+          queueMicrotask(grow);
+        });
+      } catch(e){ console.warn("Auto-grow failed", e); }
+    }
+    function showToast(msg="İşlem tamam"){ const t=State.$('toast'); if(!t) return; t.textContent=msg; t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'),2000); }
+
+    function safe(id){ return State.$(id) || null; }
+    function safeAddListener(id, evt, fn){ const el=safe(id); if(el) el.addEventListener(evt, fn); }
+
+    /* ====== MODAL ====== */
+    const Modal = {
+      lastFocus: null,
+      open(id, title="Uyarı", message=""){
+        const m = State.$(id); if(!m) return;
+        if(title) m.querySelector('.modal-title').textContent = title;
+        if(message) m.querySelector('#modal-message').textContent = message;
+        m.classList.remove('hidden');
+        this.lastFocus = document.activeElement;
+        const focusable = m.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if(focusable) focusable.focus();
+        m.addEventListener('keydown', this._trapFocus);
+      },
+      close(id){
+        const m = State.$(id); if(!m) return;
+        m.classList.add('hidden');
+        m.removeEventListener('keydown', this._trapFocus);
+        if(this.lastFocus) try { this.lastFocus.focus(); } catch(e){}
+      },
+      _trapFocus(e) { /* Basit trap focus eklenebilir */ }
+    };
+    function showModal(message, title="Uyarı"){ Modal.open('custom-alert-modal', title, message); }
+
+
+    /* ====== PROMPT BUILDER'LAR ====== */
+    const buildDetailedPrompt = (s) => {
+        const rubricText = buildScoreTableText(s.sp);
+        let contextBlock = "";
+        if (s.module && MODULE_GUIDES[s.module]) {
+            contextBlock += `\n### Modül Bağlamı (${s.module})\nAnalizi şu beklentilere göre de değerlendir:\n${MODULE_GUIDES[s.module]}`;
+        }
+        contextBlock += `\n### Artefakt Durumu\n- Akış/Model Kalitesi: ${s.flowQuality}\n- Doküman Durumu: ${s.docStatus}`;
+
+        const spNum = spToNumber(s.sp);
+        const relevantAP = ANTI_PATTERNS_DATABASE.filter(p => p.minSP <= spNum);
+        const antiPatternRules = `### Anti-Pattern Kontrolü\nSP=${s.sp} için geçerli olan anti-pattern'ler:\n- ${relevantAP.map(p=>`(ID: ${p.id}) ${p.pattern}`).join('\n- ')}`;
+
+        const MODE_HINT = {
+            standard: "Dengeli ve açıklayıcı bir üslup kullan.",
+            brief: "Çok kısa ve madde madde yaz.",
+            strict: "Denetim modunda ol; kanıtlanmamış her noktada puanı kır, tolerans gösterme."
+        };
+
+        const antiPatternMapping = `### Puanlama Mantığı\n**AI ROLÜ:** Puanları **sen** hesapla.\n- Her kriter için: {"criterion","maxScore","score","justification"} ver.\n- Her anti-pattern için: {"id","found":true,"explanation","penalties":[{"criterion","delta","reason"}]} döndür.\n- "delta" negatif sayı olmalı; ilgili kriterden kaç puan kestiğini ifade eder (örn. -3.5).\n- Tutarlılık: Her kriter için **score ≈ maxScore + Σ(delta'lar)** (tolerans ±0.1).\n- Her penalty için kısa bir "reason" zorunludur (örn. "SP=8 için ayrıntı seviyesi yetersiz").\n- “-” gibi boş/yersiz değerler kullanma; sayı veremiyorsan o kriteri penalties'e ekleme.\n- Toplam puan: scoreTable toplamıdır (isteğe bağlı "overallScore" dönebilirsin).`;
+
+        const jsonSchema = `\n\`\`\`json\n{\n  "scoreTable": [\n    { "criterion": "Model/BPMN/Data Model", "maxScore": 15, "score": 9.5, "justification": "..." }\n  ],\n  "antiPatterns": [\n    {\n      "id": "MDL-1",\n      "found": true,\n      "explanation": "Model/BPMN eksik.",\n      "penalties": [{ "criterion": "Model/BPMN/Data Model", "delta": -5.5, "reason": "Model yer almadığı için SP=8'e göre eksik" }]\n    }\n  ],\n  "overallScore": { "total": 71.4, "maxTotal": 100 },\n  "strengths": ["...", "..."],\n  "weaknesses": ["...", "..."],\n  "suggestions": ["...", "..."],\n  "overallNote": "...",\n  "spSuccessIndex": { "index": 0.0, "explanation": "..." }\n}\n\`\`\``;
+
+        const outputInstructions = `\n---\n### Çıktı Formatı\n**Kural: SADECE aşağıdaki şemaya uygun TEK BİR JSON NESNESİ üret. Başka hiçbir metin ekleme.**\n${jsonSchema}`;
+
+        const main = [
+            `Rol: Kıdemli, titiz ve adil bir iş analisti gibi davran.`,
+            `Amaç: Aşağıdaki girdileri kullanarak bir iş analizi değerlendirme raporu oluştur ve sonucu SADECE JSON formatında sun.`,
+            `### Rapor Modu\n${MODE_HINT[s.raporModu]||MODE_HINT.standard}`,
+            `### Girdiler\nTalep Adı: [${s.talepAdi}]\nAnalist: [${s.analistAdi}]\nTalep: [${s.talep}]\nAnaliz: [${s.analiz}]\nSP: [${s.sp}]`,
+            contextBlock,
+            `### Değerlendirme Kuralları\n${rubricText}`,
+            antiPatternRules,
+            antiPatternMapping
+        ].join('\n\n');
+
+        return main + outputInstructions;
+    };
+
+    const buildQuickPrompt = (s) => {
+        const feedbackTemplate = `Yapıcı Geri Bildirim (Kıdemli BA Notu)
+Sevgili ${s.analistAdi || '[Analist]'},
+Analizinde konunun teknik tarafına hızlıca geçmiş olman güzel; ancak analizin kalitesini artırmak için önce problemin neden önemli olduğunu iş değeriyle anlatmalıydık. Ayrıca gereksinimlerin pasif ifadelerle yazılması, okuyucunun kafasında net bir akış oluşturmasını zorlaştırıyor.
+Sana önerim: Analizi “neden?”, “ne yapılacak?”, “kime ne etkisi var?” ve “başarı ne zaman sayılır?” sorularına cevap verecek şekilde yapılandırman. Bunun için yukarıda örnek şablonlardan faydalanabilirsin. Özellikle test edilebilir kabul kriteri yazmak, tüm ekiplerin ortak referans alacağı bir temel sağlar.
+Beraber elden geçirip örnek akışlar ve veri haritalarıyla dokümanı tamamlayabiliriz. Güzel başlangıç, biraz daha yapılandırmayla çok daha güçlü hale gelebilir. ✨
+Saygılarımla,
+Kıdemli İş Analisti`;
+
+        const jsonSchema = `
+\`\`\`json
+{
+  "originalAnalysis": "...",
+  "rewrittenAnalysis": "...",
+  "constructiveFeedbackNote": "..."
+}
+\`\`\`
+`;
+        const outputInstructions = `
+---
+### Çıktı Formatı
+**Kural: SADECE aşağıdaki şemaya uygun TEK BİR JSON NESNESİ üret. Başka hiçbir metin ekleme.**
+
+${jsonSchema}
+`;
+        const main = [
+            `Rol: Öğretici, yapıcı ve deneyimli bir kıdemli iş analisti (Senior BA) gibi davran.`,
+            `Amaç: Aşağıdaki analizi incele, daha iyi bir versiyonunu yaz ve analiste özel bir geri bildirim notu oluştur. Sonucu SADECE JSON formatında sun.`,
+            `### Girdiler\nAnalist Adı: [${s.analistAdi}]\nAnaliz Metni: [${s.analiz}]`,
+            `### Görevler`,
+            `1.  **Mevcut Analizi Koru (originalAnalysis):** Girdideki "Analiz Metni"ni olduğu gibi bu alana yaz.`,
+            `2.  **Analizi Yeniden Yaz (rewrittenAnalysis):** Mevcut analiz metnini al ve bir iş analistinin yazması gerektiği gibi, daha net, yapılandırılmış (gerekirse maddeleme kullanarak) ve eksiksiz bir şekilde yeniden yaz. Belirsizlikleri gider ve profesyonel bir dil kullan.`,
+            `3.  **Yapıcı Geri Bildirim Notu Yaz (constructiveFeedbackNote):** Aşağıdaki şablonu kullanarak, analistin adını ekleyerek kişiselleştirilmiş, mentor tarzında bir geri bildirim notu oluştur. Not, iki analiz arasındaki temel farkları (örn: iş değeri eksikliği, pasif dil kullanımı) vurgulamalı ve analiste gelişim için yol göstermelidir.`,
+            `### Geri Bildirim Notu Şablonu\n${feedbackTemplate}`
+        ].join('\n\n');
+
+        return main + outputInstructions;
+    };
+
+    const buildPrompt = () => {
+        const s = collectState();
+        return s.workMode === 'quick' ? buildQuickPrompt(s) : buildDetailedPrompt(s);
+    };
+
+    /* ====== JSON İŞLEME VE DOĞRULAMA ====== */
+    function extractFirstJsonObject(text) {
+        let match = text.match(/```json\s*([\s\S]*?)\s*```/);
+        if (match && match[1]) {
+            return match[1];
+        }
+        let openBrace = text.indexOf('{');
+        let closeBrace = text.lastIndexOf('}');
+        if (openBrace > -1 && closeBrace > openBrace) {
+            return text.substring(openBrace, closeBrace + 1);
+        }
+        return null;
+    }
+
+    function parseGptResponse(){
+        const textEl = State.$('gptResponse');
+        const text = textEl ? textEl.value.trim() : '';
+        const errorEl = State.$('parsing-error');
+        if(errorEl){ errorEl.textContent = ''; errorEl.classList.remove('success'); }
+        if (text.length < 20) { if(errorEl) errorEl.textContent = 'JSON metni çok kısa.'; return false; }
+
+        const jsonString = extractFirstJsonObject(text);
+        if(!jsonString){ if(errorEl) errorEl.textContent = 'Metin içinde geçerli bir JSON nesnesi bulunamadı.'; return false; }
+
+        try {
+            const parsed = JSON.parse(jsonString);
+            State.app.inputs = collectState();
+            const validationErrors = validateSchema(parsed);
+            if (validationErrors.length > 0) {
+                if(errorEl) errorEl.innerHTML = 'Şema Doğrulama Hatası:<br>- ' + validationErrors.join('<br>- ');
+                return false;
+            }
+            State.app.gptResponse = { raw: text, json: parsed };
+            if(errorEl){ errorEl.textContent = 'JSON başarıyla ayıklandı ve doğrulandı!'; errorEl.classList.add('success'); }
+            return parsed;
+        } catch (e) {
+            if(errorEl) errorEl.textContent = `JSON ayrıştırılamadı: ${e.message}`;
+            return false;
+        }
+    }
+
+    function validateSchema(data){
+        const errors=[];
+        if (!data || typeof data !== 'object') return ["Kök bir JSON nesnesi olmalı."];
+        if(State.app.inputs.workMode === 'quick') return [];
+
+        if (!Array.isArray(data.scoreTable) || data.scoreTable.length === 0) {
+            errors.push("`scoreTable` alanı zorunlu ve bir dizi olmalıdır.");
+        } else {
+            if(!data.scoreTable.every(r => r.criterion && typeof r.maxScore === 'number' && typeof r.score === 'number')) {
+                 errors.push("`scoreTable` içindeki her öğe `criterion`, `maxScore`, `score` alanlarını içermelidir.");
+            }
+        }
+        if (data.antiPatterns && !Array.isArray(data.antiPatterns)) {
+             errors.push("`antiPatterns` alanı varsa bir dizi olmalıdır.");
+        }
+        if (!data.overallScore || typeof data.overallScore.total !== 'number') {
+             errors.push("`overallScore.total` alanı zorunlu ve sayı olmalıdır.");
+        }
+        return errors;
+    }
+
+    /* ====== STATE TOPLAMA ====== */
+    function collectState(){
+      return {
+        workMode: State.$("workMode")?.value || 'detailed',
+        talepNo: State.$("talepNo")?.value || "",
+        talepAdi: State.$("talepAdi")?.value || "",
+        analistAdi: State.$("analistAdi")?.value || "",
+        talep: State.$("talep")?.value || "",
+        analiz: State.$("analiz")?.value || "",
+        sp: State.$("spDegeri")?.value || "1",
+        raporModu: State.$("raporModu")?.value || "standard",
+        module: State.$("moduleSelect")?.value || "",
+        flowQuality: State.$("flowQuality")?.value || "yok",
+        docStatus: State.$("docStatus")?.value || "taslak",
+        gbMode: State.$("gbMode")?.value || "neutral",
+        gbFocus: State.$("gbFocus")?.value || "rewrite",
+      };
+    }
+
+    function updateSidePanel(){
+      const s = collectState();
+      const out = State.$('output');
+      if (!out) return;
+
+      if (State.currentStage === 4) {
+         out.textContent = `Rapor Görüntüleniyor...\n\n-- TALEP --\n${s.talep}\n\n-- ANALİZ --\n${s.analiz}`;
+      } else if (State.currentStage === 3) {
+         out.textContent = "AI'dan gelen JSON yanıtını yukarıdaki alana yapıştırın.";
+      } else {
+         out.textContent = buildPrompt();
+      }
+    }
+
+    function updateStepBadge(){
+      document.querySelectorAll('.timeline-node').forEach(btn=>{
+        const st = Number(btn.dataset.stage || 0);
+        btn.classList.toggle('active', st === State.currentStage);
+        btn.classList.toggle('completed', st < State.currentStage);
+      });
+      const head = document.querySelector(`#stage-${State.currentStage} h2`);
+      if(head){ try{ head.focus({preventScroll:true}); }catch(e){} }
+    }
+
+    /* ====== GEZİNME ====== */
+    function navigateToStage(targetStage){
+        /* DEĞİŞİKLİK: Madde 1 - 4. aşamadan ayrılırken düzenlemeleri kaydet */
+        if (State.currentStage === 4 && targetStage !== 4) {
+            State.app.reportStateCache = captureReportState();
+            AutoSaver.stop();
+        }
+
+        if(targetStage < 1 || targetStage > 4) return;
+        if(targetStage > State.currentStage) {
+            if(State.currentStage === 1 && !validateStage1()) return;
+            if(State.currentStage === 3 && !parseGptResponse()) {
+                showModal("Devam etmeden önce geçerli bir AI JSON yanıtı girmelisiniz.");
+                return;
+            }
+        }
+
+        const prevStage = State.currentStage;
+        State.currentStage = targetStage;
+        document.querySelectorAll('.stage').forEach(s=>s.classList.remove('active'));
+        State.$(`stage-${targetStage}`).classList.add('active');
+
+        const copyBtn = State.$('copyBtn');
+        if (copyBtn) {
+            const isVisible = (targetStage === 2 && collectState().workMode === 'detailed');
+            copyBtn.style.display = isVisible ? 'inline-block' : 'none';
+        }
+
+        if(targetStage === 4) {
+            // Sadece ilk defa 4. aşamaya geliniyorsa veya AI verisi değiştiyse yeniden render et
+            if (prevStage !== 4) {
+              /* DEĞİŞİKLİK: Madde 1 - Önce cache'i veya localStorage'ı kontrol et */
+              const savedDraft = State.app.reportStateCache || AutoSaver.load();
+              const needsFreshRender = !savedDraft || savedDraft.aiHash !== State.app.gptResponse.raw.substring(0, 50);
+
+              if (needsFreshRender) {
+                renderReport();
+              } else {
+                renderReport(savedDraft);
+                showToast("Kaydedilmiş düzenlemeler geri yüklendi.");
+              }
+            }
+            AutoSaver.start();
+        }
+
+        updateStepBadge();
+        bindAutoGrowTextareas(State.$(`stage-${targetStage}`));
+        updateSidePanel();
+    }
+
+    function validateStage1(){
+        const s = collectState();
+        let ok = true;
+        const check = (id, condition) => {
+            const el = State.$(id);
+            if (!el) return;
+            if (!condition) { ok = false; el.style.borderColor = 'var(--danger)'; }
+            else { el.style.borderColor = 'var(--border)'; }
+        };
+        check('analistAdi', s.analistAdi.trim().length > 2);
+        check('analiz', s.analiz.trim().split(/\s+/).length >= MIN_WORD_COUNT);
+        if (s.workMode === 'detailed') {
+            check('talepAdi', s.talepAdi.trim().length > 2);
+            check('talep', s.talep.trim().split(/\s+/).length >= MIN_WORD_COUNT);
+        }
+        if(!ok) showModal("Lütfen kırmızı ile işaretlenmiş zorunlu alanları doldurun (Metin alanları için en az 10 kelime).");
+        return ok;
+    }
+
+    /* =================================================================== */
+    /* ====== RAPORLAMA (DİNAMİK VE EDİTLENEBİLİR) ====== */
+    /* =================================================================== */
+    
+    /* DEĞİŞİKLİK: Madde 1 - Raporun mevcut durumunu yakalamak için fonksiyon */
+    function captureReportState() {
+      const card = State.$('final-report-card');
+      if (!card || !card.querySelector('#report-table')) return null;
+
+      const state = {
+        aiHash: State.app.gptResponse?.raw.substring(0, 50), // AI yanıtının değişip değişmediğini anlamak için
+        rows: [],
+        effects: [],
+        removedPenalties: [], // Bu özellik eklenebilir
+        textFields: {}
+      };
+
+      // Metin alanlarını topla
+      card.querySelectorAll('textarea.editable-area, input[type="text"].editable-area').forEach(el => {
+        state.textFields[el.id] = el.value;
+      });
+
+      const table = card.querySelector('#report-table');
+      // Puan ve notları topla
+      table.querySelectorAll('tr[data-crit-index]').forEach(tr => {
+        if(tr.classList.contains('effect-row') || tr.classList.contains('penalty-row')) return;
+        
+        const idx = Number(tr.getAttribute('data-crit-index') || '0');
+        const score = parseFloat(tr.querySelector('.score-input')?.value || '0') || 0;
+        const justification = tr.querySelector('.editable-area')?.value || '';
+        state.rows.push({ idx, score, justification });
+        
+        // Etki satırlarını topla
+        let next = tr.nextElementSibling;
+        while (next && next.classList.contains('effect-row')) {
+          const delta = parseFloat(next.querySelector('.eff-delta')?.value || '0') || 0;
+          const reason = next.querySelector('.eff-note')?.value || '';
+          const patternId = next.querySelector('.eff-select')?.value || '';
+          state.effects.push({ critIdx: idx, delta, reason, patternId });
+          next = next.nextElementSibling;
+        }
+      });
+      return state;
+    }
+
+    function recalculateAndDisplayFinalScore() {
+        const reportCard = State.$('final-report-card');
+        if (!reportCard) return;
+
+        let totalScore = 0;
+        reportCard.querySelectorAll('tr[data-crit-index]:not(.effect-row):not(.penalty-row) .score-input').forEach(input => {
+            totalScore += Number(input.value) || 0;
+        });
+
+        const finalScoreEl = State.$('finalScore');
+        if (finalScoreEl) {
+            const maxTotal = finalScoreEl.dataset.maxTotal || 100;
+            finalScoreEl.textContent = `${totalScore.toFixed(1)} / ${maxTotal}`;
+            
+            /* DEĞİŞİKLİK: Madde 2 - Puan güncellendiğinde görsel geri bildirim */
+            finalScoreEl.classList.remove('highlight');
+            void finalScoreEl.offsetWidth; // Reflow
+            finalScoreEl.classList.add('highlight');
+        }
+    }
+
+    function renderReport(savedState = null){
+      if(!savedState && !State.app.gptResponse?.json) {
+        State.$('final-report-card').innerHTML="Rapor oluşturulamadı. AI cevabını kontrol edin.";
+        return;
+      }
+      const isQuick = State.app.inputs.workMode === 'quick';
+      if(isQuick) renderQuickReport(); else renderDetailedReport(savedState);
+    }
+
+    function renderQuickReport(){
+      const { json } = State.app.gptResponse;
+      const { analistAdi, talepAdi } = State.app.inputs;
+      const el = State.$('final-report-card');
+      const evaluationDate = new Date().toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+      el.innerHTML = `
+        <div class="print-only-header">
+            <img src="https://m.enerjisa.com.tr/assets/img/enerjisa-logo.png" alt="Enerjisa Logo" style="max-height: 50px; margin-bottom: 1rem;">
+            <h1>İş Uygulamaları Müdürlüğü</h1>
+            <p>Analiz Değerlendirme Formu</p>
+            <p style="font-size: 11pt; color: #777;">Değerlendirme Tarihi: ${evaluationDate}</p>
+        </div>
+        <h3>Hızlı Geri Bildirim Raporu</h3>
+        <p><strong>Analist:</strong> ${State.esc(analistAdi)}</p>
+        <p><strong>Talep:</strong> ${State.esc(talepAdi||'-')}</p>
+        <hr>
+        <h4>Önerilen Analiz Metni</h4>
+        <div style="background:#f8f9fa; padding:12px; border-radius:8px; border:1px solid var(--border); white-space:pre-wrap;">${State.esc(json.rewrittenAnalysis || 'N/A')}</div>
+        <h4>Yapıcı Geri Bildirim Notu</h4>
+        <div style="white-space:pre-wrap;">${State.esc(json.constructiveFeedbackNote || 'N/A')}</div>`;
+    }
+
+    function renderDetailedReport(savedState = null){
+        const json = State.app.gptResponse.json;
+        const inputs = State.app.inputs;
+        const el = State.$('final-report-card');
+        if (!el) return;
+
+        const evaluationDate = new Date().toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const formatListForTextarea = (arr, prefix = '- ') => (arr || []).map(item => `${prefix}${State.esc(item)}`).join('\n');
+        
+        const foundPatterns = (json.antiPatterns || []).filter(ap => ap.found);
+        const apText = foundPatterns.length > 0
+            ? formatListForTextarea(foundPatterns.map(ap => `[${ap.id}] ${ap.explanation}`), '')
+            : "Bu analizde herhangi bir anti-pattern tespit edilmedi.";
+
+        // DEĞİŞİKLİK: Kaydedilmiş durumu kullan
+        const getText = (id, fallback) => savedState?.textFields?.[id] ?? State.esc(fallback);
+
+        el.innerHTML = `
+            <div class="print-only-header">
+                <img src="https://m.enerjisa.com.tr/assets/img/enerjisa-logo.png" alt="Enerjisa Logo">
+                <h1>İş Uygulamaları Müdürlüğü</h1>
+                <p>Analiz Değerlendirme Formu</p>
+                <p style="font-size: 11pt; color: #777;">Değerlendirme Tarihi: ${evaluationDate}</p>
+            </div>
+            <div class="report-section" style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                    <img src="https://m.enerjisa.com.tr/assets/img/enerjisa-logo.png" alt="Enerjisa Logo" class="report-logo-screen">
+                    <p style="margin:0;"><strong>Analist:</strong> ${State.esc(inputs.analistAdi)}</p>
+                    <p style="margin:4px 0 0;"><strong>Talep:</strong> ${State.esc(inputs.talepAdi)} (${State.esc(inputs.talepNo||'-')})</p>
+                    <p style="margin:4px 0 0;"><strong>Tarih:</strong> ${evaluationDate}</p>
+                </div>
+                <div style="text-align:right;">
+                    <div style="color:var(--muted); font-size:14px;">Nihai Puan</div>
+                    <div id="finalScore" data-max-total="${json.overallScore?.maxTotal || 100}">${(json.overallScore?.total || 0).toFixed(1)} / ${(json.overallScore?.maxTotal || 100)}</div>
+                </div>
+            </div>
+            <div class="report-section">
+                <label for="report-overallNote">Genel Değerlendirme Notu</label>
+                <textarea id="report-overallNote" class="editable-area">${getText('report-overallNote', json.overallNote || "")}</textarea>
+            </div>
+            <div class="report-section">
+                <h3>Puanlama Tablosu</h3>
+                <table id="report-table"></table>
+            </div>
+            <div class="report-section">
+                <label for="report-antiPatterns">Tespit Edilen Anti-Pattern'ler</label>
+                <textarea id="report-antiPatterns" class="editable-area">${getText('report-antiPatterns', apText)}</textarea>
+            </div>
+            <div class="report-section">
+                <label for="report-strengths">Güçlü Yönler</label>
+                <textarea id="report-strengths" class="editable-area">${getText('report-strengths', formatListForTextarea(json.strengths))}</textarea>
+            </div>
+             <div class="report-section">
+                <label for="report-weaknesses">Zayıf Yönler / Riskler</label>
+                <textarea id="report-weaknesses" class="editable-area">${getText('report-weaknesses', formatListForTextarea(json.weaknesses))}</textarea>
+            </div>
+             <div class="report-section">
+                <label for="report-suggestions">İyileştirme Önerileri</label>
+                <textarea id="report-suggestions" class="editable-area">${getText('report-suggestions', formatListForTextarea(json.suggestions))}</textarea>
+            </div>
+            <div class="report-section">
+                <h3>Değerlendiren Notları</h3>
+                <label for="reviewerName">Değerlendiren Adı Soyadı</label>
+                <input type="text" id="reviewerName" class="editable-area" placeholder="Adınız Soyadınız" value="${getText('reviewerName', '')}">
+                <label for="reviewerNotes" class="no-print-label">Ek Notlar ve Gözlemler</label>
+                <textarea id="reviewerNotes" class="editable-area" placeholder="Bu analizle ilgili ek gözlemleriniz...">${getText('reviewerNotes', '')}</textarea>
+            </div>`;
+        
+        updateScoreTable(json, savedState);
+        bindAutoGrowTextareas(el);
+
+        el.addEventListener('input', (e) => {
+            if (e.target && (e.target.classList.contains('score-input') || e.target.classList.contains('editable-area'))) {
+                recalculateAndDisplayFinalScore();
+                AutoSaver.markDirty();
+            }
+        });
+
+        // Eğer kaydedilmiş durum varsa, nihai puanı yeniden hesapla
+        if (savedState) recalculateAndDisplayFinalScore();
+    }
+    
+    function updateScoreTable(json, savedState = null){
+        const table = State.$('report-table');
+        if (!table || !json.scoreTable) return;
+
+        let html = `<thead><tr><th>Kriter</th><th>Puan</th><th>Maks. Puan</th><th>Açıklama</th></tr></thead><tbody>`;
+
+        const antiPatternPenalties = new Map();
+        (json.antiPatterns || []).forEach(ap => {
+            if (ap.found && ap.penalties) {
+                ap.penalties.forEach(p => {
+                    if (!antiPatternPenalties.has(p.criterion)) antiPatternPenalties.set(p.criterion, []);
+                    antiPatternPenalties.get(p.criterion).push({ id: ap.id, delta: p.delta, reason: p.reason });
+                });
+            }
+        });
+
+        json.scoreTable.forEach((row, i) => {
+            // DEĞİŞİKLİK: Kaydedilmiş puan veya not varsa onu kullan
+            const savedRow = savedState?.rows.find(r => r.idx === i);
+            const score = savedRow ? savedRow.score : row.score;
+            const justification = savedRow ? savedRow.justification : (row.justification || '-');
+
+            html += `<tr data-crit-index="${i}">
+                <td>${State.esc(row.criterion)}</td>
+                <td><input type="number" class="score-input" value="${Number(score).toFixed(1)}" step="0.5" style="width: 70px;"></td>
+                <td>${State.esc(row.maxScore)}</td>
+                <td>
+                  <textarea class="editable-area" style="min-height: 50px;">${State.esc(justification)}</textarea>
+                  <span class="mini-link effect-add" data-crit-index="${i}" title="Etki satırı ekle">+ etki</span>
+                </td>
+            </tr>`;
+            if (antiPatternPenalties.has(row.criterion)) {
+                antiPatternPenalties.get(row.criterion).forEach(penalty => {
+                    html += `<tr class="penalty-row" data-crit-index="${i}" data-delta="${State.esc(penalty.delta)}">
+                        <td colspan="4">
+                            <strong>[${State.esc(penalty.id)}] Etki:</strong> ${State.esc(penalty.delta)} puan - <em>${State.esc(penalty.reason)}</em>
+                            &nbsp;<button class="mini-x" title="Kaldır">×</button>
+                        </td>
+                    </tr>`;
+                });
+            }
+        });
+
+        html += `</tbody>`;
+        table.innerHTML = html;
+        
+        // Kaydedilmiş efektleri yeniden oluştur
+        if (savedState && savedState.effects) {
+          savedState.effects.forEach(eff => {
+            const link = table.querySelector(`.effect-add[data-crit-index="${eff.critIdx}"]`);
+            if (link) {
+              addEffectRow(link, eff); // Efektleri eklemek için yeni bir yardımcı fonksiyon
+            }
+          });
+        }
+        
+        // AI ceza satırlarını kaldırılabilir yap
+        table.querySelectorAll('.penalty-row .mini-x').forEach(btn => {
+          btn.addEventListener('click', () => {
+              const pr = btn.closest('tr');
+              const idx = Number(pr.getAttribute('data-crit-index')||'0');
+              const delta = parseFloat(pr.getAttribute('data-delta')||'0') || 0;
+              const critRow = table.querySelector(`tr[data-crit-index="${idx}"]`);
+              const scoreInput = critRow ? critRow.querySelector('.score-input') : null;
+              if (scoreInput) {
+                const cur = parseFloat(scoreInput.value)||0;
+                scoreInput.value = (cur - delta).toFixed(1);
+                scoreInput.dispatchEvent(new Event('input', {bubbles:true}));
+              }
+              pr.remove();
+          });
+        });
+
+        // Etki ekleme linkleri
+        table.querySelectorAll('.effect-add').forEach(link => {
+          link.addEventListener('click', () => addEffectRow(link, null));
+        });
+        
+        bindAutoGrowTextareas(table);
+    }
+    
+    // DEĞİŞİKLİK: Etki satırı ekleme mantığı, yeniden kullanılabilirlik için ayrı bir fonksiyona taşındı.
+    function addEffectRow(linkElement, initialState = null) {
+      const idx = Number(linkElement.getAttribute('data-crit-index')||'0');
+      const table = linkElement.closest('table');
+      const critRow = table.querySelector(`tr[data-crit-index="${idx}"]`);
+      const scoreInput = critRow ? critRow.querySelector('.score-input') : null;
+
+      const tr = document.createElement('tr');
+      tr.className = 'effect-row';
+      tr.setAttribute('data-crit-index', String(idx));
+      tr.innerHTML = `<td colspan="4" style="display:flex; align-items:center; gap:6px;">
+          <b>Etki:</b>
+          <input type="number" step="0.5" value="${initialState ? initialState.delta : -1}" class="eff-delta" style="width:70px; flex-shrink:0;" />
+          <select class="eff-select" style="flex-shrink:0;"><option value="">(listeden seç)</option></select>
+          <input type="text" class="eff-note" value="${initialState ? State.esc(initialState.reason) : ''}" placeholder="Kısa açıklama" style="flex-grow:1;" />
+          <button class="mini-tick" title="Onayla">✓</button>
+          <button class="mini-x" title="Kaldır">×</button>
+      </td>`;
+      
+      let ref = critRow;
+      let next = ref.nextElementSibling;
+      while (next && (next.classList.contains('effect-row') || next.classList.contains('penalty-row'))) { ref = next; next = next.nextElementSibling; }
+      ref.insertAdjacentElement('afterend', tr);
+
+      function recolor(row, val){
+        row.classList.remove('pos','neg');
+        if (val > 0) row.classList.add('pos');
+        else if (val < 0) row.classList.add('neg');
+      }
+
+      const deltaEl = tr.querySelector('.eff-delta');
+      let last = parseFloat(deltaEl.value) || 0;
+      recolor(tr, last);
+
+      // Sadece yeni eklenen (initialState olmayan) satırlar için puanı ayarla
+      if (!initialState && scoreInput) {
+        scoreInput.value = (parseFloat(scoreInput.value||'0') + last).toFixed(1);
+        scoreInput.dispatchEvent(new Event('input', {bubbles:true}));
+      }
+
+      deltaEl.addEventListener('input', () => {
+        const val = parseFloat(deltaEl.value)||0;
+        recolor(tr, val);
+        const diff = val - last;
+        last = val;
+        if (scoreInput) {
+          scoreInput.value = (parseFloat(scoreInput.value||'0') + diff).toFixed(1);
+          scoreInput.dispatchEvent(new Event('input', {bubbles:true}));
+        }
+        AutoSaver.markDirty();
+      });
+      
+      tr.querySelector('.eff-note').addEventListener('input', () => AutoSaver.markDirty());
+      
+      // Onay butonunun işlevi (şimdilik sadece görsel)
+      tr.querySelector('.mini-tick').addEventListener('click', () => {
+          showToast("Değişiklikler kaydedildi.");
+          // Gelecekte buraya özel bir kaydetme mantığı eklenebilir.
+      });
+
+      tr.querySelector('.mini-x').addEventListener('click', () => {
+        if (scoreInput) {
+          scoreInput.value = (parseFloat(scoreInput.value||'0') - last).toFixed(1);
+          scoreInput.dispatchEvent(new Event('input', {bubbles:true}));
+        }
+        tr.remove();
+        AutoSaver.markDirty();
+      });
+    }
+
+
+    /* ====== Event Listeners & Başlangıç ====== */
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        // Navigasyon
+        ['next-to-2', 'next-to-3', 'next-to-4'].forEach((id, i) => {
+            safeAddListener(id, 'click', () => navigateToStage(i + 2));
+        });
+        ['prev-to-1', 'prev-to-2', 'prev-to-3'].forEach((id, i) => {
+            safeAddListener(id, 'click', () => navigateToStage(i + 1));
+        });
+        document.querySelectorAll('.timeline-node').forEach(btn => {
+            btn.addEventListener('click', () => navigateToStage(Number(btn.dataset.stage)));
+        });
+
+        // Diğer Butonlar
+        safeAddListener('sampleBtn', 'click', () => {
+            Object.entries({
+                'workMode':'detailed', 'talepNo':'JIRA-456', 'talepAdi':'IVR Müşteri Ticari İzin Onayı',
+                'analistAdi':'Ayşe Yılmaz', 'spDegeri':'8', 'moduleSelect':'CRM-B2C', 'flowQuality': 'yeterli', 'docStatus': 'taslak',
+                'talep':`IVR akışında tacir/esnaf ayrımı yapılarak ticari izinlerin (arama/SMS/e-posta) alınması süreci. SAP CRM'de mevcut CHECKTELVALID ve izin objeleri var. EPDK uyumlu onay metni okunacak. 1 ay kuralı dikkate alınmalı.`,
+                'analiz':`ODATA servisi ile IVR sonuçları CRM'e taşınacak. Telefon doğrulama, müşteri tipi tespiti (B2B/B2C) ve izin bayraklarının güncellenmesi hedefleniyor. Alternatif akış olarak tuşlama yapmayan müşteri senaryosu düşünüldü. Kabul kriterleri giriş seviyesinde tanımlandı, detaylandırılması gerekiyor. Mevcut sistemdeki objelerin nasıl kullanılacağına dair detaylı bir veri haritalaması yapılmadı.`
+            }).forEach(([id, val]) => { const e=safe(id); if(e) e.value = val; });
+            
+            const workModeElement = State.$('workMode');
+            if (workModeElement) {
+                workModeElement.dispatchEvent(new Event('change'));
+            }
+
+            showToast("Örnek veriler dolduruldu.");
+            bindAutoGrowTextareas(document.getElementById('stage-1'));
+            updateSidePanel();
+        });
+
+        safeAddListener('copyBtn', 'click', () => {
+          const content = State.$('output')?.textContent || '';
+          navigator.clipboard.writeText(content).then(() => showToast("Kopyalandı!")).catch(() => showToast("Kopyalanamadı."));
+        });
+        safeAddListener('printBtn', 'click', () => window.print());
+        safeAddListener('themeToggle', 'click', () => document.body.classList.toggle('theme-yellow'));
+        safeAddListener('modal-ok-btn', 'click', () => Modal.close('custom-alert-modal'));
+        safeAddListener('custom-alert-modal', 'click', (e) => { if(e.target === e.currentTarget) Modal.close('custom-alert-modal'); });
+
+        // Input dinleyicileri
+        document.querySelector('.hub-column').addEventListener('input', updateSidePanel);
+        State.$('workMode').addEventListener('change', (e) => {
+            const isDetailed = e.target.value === 'detailed';
+            const detailedInputs = State.$('detailed-inputs');
+            const detailedOptions = State.$('detailed-options');
+            const quickOptions = State.$('quick-options');
+            
+            if (detailedInputs) detailedInputs.style.display = isDetailed ? 'block' : 'none';
+            if (detailedOptions) detailedOptions.style.display = isDetailed ? 'block' : 'none';
+            if (quickOptions) quickOptions.style.display = isDetailed ? 'none' : 'block';
+            
+            if(State.currentStage === 2) navigateToStage(2);
+
+            updateSidePanel();
+        });
+        
+        // DEĞİŞİKLİK: Sayfadan ayrılmadan önce uyar
+        window.addEventListener('beforeunload', (e) => {
+          if (AutoSaver.isDirty) {
+            e.preventDefault();
+            e.returnValue = ''; // Tarayıcıların kendi mesajını göstermesi için
+          }
+        });
+
+        // Başlangıç
+        navigateToStage(1);
+
+      } catch (err) {
+        console.error("Başlatma sırasında hata:", err);
+        showModal("Script başlatılırken beklenmedik bir hata oluştu. Lütfen konsolu kontrol edin.");
+      }
+    });
+  </script>
+
+
+<script id="jira-gadget-adjust">
+(function(){
+  function canAdjust(){ return (window.gadgets && gadgets.window && typeof gadgets.window.adjustHeight === 'function'); }
+  function measure(){
+    var d = document;
+    return Math.max(
+      d.documentElement ? d.documentElement.scrollHeight : 0,
+      d.body ? d.body.scrollHeight : 0,
+      d.documentElement ? d.documentElement.offsetHeight : 0,
+      d.body ? d.body.offsetHeight : 0
+    );
+  }
+  function adjust(){
+    try{
+      if(!canAdjust()) return;
+      var h = measure();
+      if (h && h > 0) gadgets.window.adjustHeight(h);
+    }catch(e){ /* ignore */ }
+  }
+  function awaitGadgets(maxMs){
+    var started = Date.now();
+    (function tick(){
+      if (canAdjust()){
+        document.documentElement.classList.add('in-gadget');
+        adjust();
+        if ('ResizeObserver' in window) {
+          new ResizeObserver(adjust).observe(document.body);
+        }
+        if ('MutationObserver' in window) {
+          new MutationObserver(function(){ adjust(); }).observe(document.body, {subtree:true, childList:true, attributes:true, characterData:true});
+        } else {
+          setInterval(adjust, 800);
+        }
+        return;
+      }
+      if (Date.now() - started < (maxMs||15000)){
+        setTimeout(tick, 300);
+      }
+    })();
+  }
+  window.addEventListener('load', adjust);
+  awaitGadgets(20000);
+  window.__JiraGadgetAdjust = adjust;
+})();
+</script>
+
+</body>
+</html>
+<!-- MERGED PATCH: Pattern Library + Helpers + addEffectRow 
+<!-- FINALIZER v7: Disable add-effect feature; keep delete working -->
+<style>
+/* Hide all "+ etki" triggers and reserve minimal space to avoid layout shift */
+.effect-add{ display:none !important; }
+</style>
+<script>
+(function(){
+  // Flag to disable any additions
+  window.DISABLE_EFFECT_ADD = true;
+
+  // Hard override addEffectRow to a no-op
+  window.addEffectRow = function(){ 
+    try{ if (window.showToast) window.showToast('Etki ekleme devre dışı.'); }catch(_e){} 
+    return;
+  };
+
+  // Stop any click on legacy .effect-add if still present
+  document.addEventListener('click', function(e){
+    var el = e.target && (e.target.closest ? e.target.closest('.effect-add') : null);
+    if (!el) return;
+    try{ e.preventDefault(); }catch(_){}
+    try{ e.stopPropagation(); }catch(_){}
+    try{ e.stopImmediatePropagation && e.stopImmediatePropagation(); }catch(_){}
+  }, true);
+
+  // If previous restorers try to re-create effects from storage, neutralize them
+  // by clearing any pending timers they may have set.
+  // (Best-effort: remove known timers if exposed; otherwise ignore.)
+  try{
+    if (window.restoreEffectsTimer){
+      clearInterval(window.restoreEffectsTimer);
+      window.restoreEffectsTimer = null;
+    }
+  }catch(_e){}
+
+  // Ensure delete (X) on existing rows continues to adjust scores correctly
+  function num(x){ var n = parseFloat(String(x||'').replace(',','.')); return isFinite(n)?n:0; }
+  document.addEventListener('click', function(e){
+    var btn = e.target && (e.target.closest ? e.target.closest('.mini-x') : null);
+    if (!btn) return;
+    var row = btn.closest('tr');
+    if (!row) return;
+    var idx = row.getAttribute('data-crit-index');
+    var table = row.closest('table');
+    var critRow = idx ? table.querySelector('tr[data-crit-index="'+idx+'"]') : null;
+    var scoreInput = critRow ? critRow.querySelector('.score-input') : null;
+
+    // Prefer stored delta for effect rows; penalty rows update logic may exist elsewhere already
+    if (row.classList.contains('effect-row')){
+      var d = row.dataset && row.dataset.delta ? num(row.dataset.delta) : (function(){
+        var inp = row.querySelector('.eff-delta'); return inp ? num(inp.value) : 0;
+      })();
+      if (scoreInput){
+        scoreInput.value = (num(scoreInput.value||'0') - d).toFixed(1);
+        scoreInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    }
+  }, true);
+})();
+</script>
+
+<!-- FINALIZER v6: ✓ saves -> freeze row + auto add a fresh effect row -->
+<style>
+.effect-row.frozen{ background: #ecfdf5; } /* soft green */
+.effect-row .eff-summary{ font-weight:600; margin-right:8px; }
+.effect-row .eff-note-view{ opacity:.8; font-size:.9em; margin-left:6px; }
+</style>
+<script>
+(function(){
+  // Attach after v5 persistence hooks
+  function ready(fn){ if (document.readyState==='complete' || document.readyState==='interactive') setTimeout(fn,0); else document.addEventListener('DOMContentLoaded', fn); }
+  function num(x){ var n = parseFloat(String(x||'').replace(',','.')); return isFinite(n)?n:0; }
+
+  ready(function(){
+    // Monkeypatch the current addEffectRow to extend ✓ behavior
+    var _orig = window.addEffectRow;
+    window.addEffectRow = function(link, initialState){
+      _orig && _orig(link, initialState);
+      try{
+        var idx = Number(link.getAttribute('data-crit-index')||'0');
+        var table = link.closest('table');
+        var critRow = table ? table.querySelector('tr[data-crit-index="'+idx+'"]') : null;
+        if (!critRow) return;
+
+        // find last created effect-row under this index
+        var tr = critRow.nextElementSibling;
+        while (tr && (tr.classList.contains('penalty-row'))) tr = tr.nextElementSibling;
+        var lastEffect = null, cur = tr;
+        while (cur && cur.classList.contains('effect-row')){ lastEffect = cur; cur = cur.nextElementSibling; }
+        var row = lastEffect || tr;
+        if (!row || !row.classList.contains('effect-row')) return;
+
+        var td   = row.querySelector('td');
+        var tick = row.querySelector('.mini-tick');
+        var del  = row.querySelector('.mini-x');
+        var sel  = row.querySelector('.eff-select');
+        var inp  = row.querySelector('.eff-delta');
+        var note = row.querySelector('.eff-note');
+
+        if (!tick || !td) return;
+
+        // Avoid double-binding
+        if (tick.dataset.freezeBound === '1') return;
+        tick.dataset.freezeBound = '1';
+
+        tick.addEventListener('click', function(){
+          // freeze: prepare summary text
+          var chosen = sel && sel.selectedOptions && sel.selectedOptions[0] ? sel.selectedOptions[0].textContent : '';
+          var d = num(inp && inp.value);
+          var noteTxt = (note && note.value) ? note.value : '';
+
+          // Persist already handled by v5; we only make UI static
+          // Keep delta in data-* for safe removal math
+          row.dataset.delta = String(d);
+
+          // Build summary
+          var summary = document.createElement('span');
+          summary.className = 'eff-summary';
+          summary.textContent = (d>0?'+':'') + d + ' → ' + (chosen || '(seçilmedi)');
+
+          var noteView = document.createElement('span');
+          noteView.className = 'eff-note-view';
+          if (noteTxt) noteView.textContent = ' — ' + noteTxt;
+
+          // Hide editable controls
+          if (inp) inp.style.display='none';
+          if (sel) sel.style.display='none';
+          if (note) note.style.display='none';
+
+          // Hide tick (✓) after save
+          tick.style.display = 'none';
+
+          // Insert summary before buttons (only once)
+          if (!td.querySelector('.eff-summary')){
+            td.insertBefore(summary, del);
+            td.insertBefore(noteView, del);
+          }
+
+          row.classList.add('frozen');
+
+          // Auto-insert a fresh blank row for rapid entry
+          var effectAdd = critRow.parentElement.querySelector('.effect-add[data-crit-index="'+idx+'"]') ||
+                          critRow.parentElement.querySelector('.effect-add');
+          if (effectAdd){
+            window.addEffectRow(effectAdd, null);
+          }
+        });
+
+        // When delete is clicked, ensure score adjustment uses stored delta if inputs hidden
+        if (del && del.dataset.fixBound !== '1'){
+          del.dataset.fixBound = '1';
+          del.addEventListener('click', function(){
+            try{
+              var scoreInput = critRow ? critRow.querySelector('.score-input') : null;
+              var d = row.dataset && row.dataset.delta ? num(row.dataset.delta) : num(inp && inp.value);
+              if (scoreInput){
+                scoreInput.value = (num(scoreInput.value||'0') - d).toFixed(1);
+                scoreInput.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            }catch(_e){}
+          }, { capture: true });
+        }
+
+      }catch(e){ console.warn('v6 freeze/auto-add hook error', e); }
+    };
+  });
+})();
+</script>
+
+<!-- FINALIZER v5: Persistent save/restore for effect rows -->
+<script>
+(function(){
+  var KEY = 'ba_eval_effects_v1';
+
+  function norm(s){
+    return String(s||'').toLowerCase().replace(/[^a-z0-9çğıöşü&\/() \-]+/g,' ').replace(/\s+/g,' ').trim();
+  }
+  function readStore(){
+    try{ return JSON.parse(localStorage.getItem(KEY) || '[]'); }catch(e){ return []; }
+  }
+  function writeStore(arr){
+    try{ localStorage.setItem(KEY, JSON.stringify(arr||[])); }catch(e){ /* ignore */ }
+  }
+  function makeKey(critText, idx){
+    return norm(critText)+'#'+String(idx);
+  }
+  function collectFromRow(tr){
+    var table = tr.closest('table');
+    var idx = Number(tr.getAttribute('data-crit-index') || '0');
+    var critRow = table ? table.querySelector('tr[data-crit-index="'+idx+'"]') : null;
+    var critText = critRow ? (critRow.children[0] && critRow.children[0].textContent || '').trim() : '';
+    var selectEl = tr.querySelector('.eff-select');
+    var deltaEl  = tr.querySelector('.eff-delta');
+    var noteEl   = tr.querySelector('.eff-note');
+    var patId    = (selectEl && selectEl.value) || '';
+    var delta    = parseFloat(String(deltaEl && deltaEl.value || '0').replace(',','.')) || 0;
+    var reason   = (noteEl && noteEl.value) || '';
+    return {
+      key: makeKey(critText, idx),
+      criterion: critText,
+      index: idx,
+      patternId: patId,
+      delta: delta,
+      reason: reason
+    };
+  }
+  function upsertEffect(effect){
+    var arr = readStore();
+    var i = arr.findIndex(function(x){ return x.key === effect.key; });
+    if (i >= 0) arr[i] = effect; else arr.push(effect);
+    writeStore(arr);
+  }
+  function removeEffectByKey(key){
+    var arr = readStore().filter(function(x){ return x.key !== key; });
+    writeStore(arr);
+  }
+
+  // Wrap current addEffectRow to add persistence hooks
+  var prevAdd = window.addEffectRow;
+  window.addEffectRow = function(link, initialState){
+    prevAdd && prevAdd(link, initialState);
+    // Find the row we just inserted (the first .effect-row after the crit row chain end)
+    try{
+      var idx = Number(link.getAttribute('data-crit-index') || '0');
+      var table = link.closest('table');
+      var critRow = table ? table.querySelector('tr[data-crit-index="'+idx+'"]') : null;
+      if (!critRow) return;
+      var tr = critRow.nextElementSibling;
+      while (tr && tr.classList && tr.classList.contains('penalty-row')) tr = tr.nextElementSibling;
+      // pick last consecutive effect-row for that index
+      var lastEffect = null, cur = tr;
+      while (cur && cur.classList && cur.classList.contains('effect-row')){ lastEffect = cur; cur = cur.nextElementSibling; }
+      var row = lastEffect || tr;
+      if (!row || !row.classList || !row.classList.contains('effect-row')) return;
+
+      var tick = row.querySelector('.mini-tick');
+      var del  = row.querySelector('.mini-x');
+      var sel  = row.querySelector('.eff-select');
+      var inp  = row.querySelector('.eff-delta');
+      var note = row.querySelector('.eff-note');
+
+      function persist(){ upsertEffect(collectFromRow(row)); }
+      function debouncePersist(){
+        clearTimeout(row._persistT);
+        row._persistT = setTimeout(persist, 150);
+      }
+
+      if (tick) tick.addEventListener('click', persist);
+      if (sel)  sel.addEventListener('change', debouncePersist);
+      if (inp)  inp.addEventListener('input', debouncePersist);
+      if (note) note.addEventListener('input', debouncePersist);
+      if (del)  del.addEventListener('click', function(){
+        var tmp = collectFromRow(row);
+        removeEffectByKey(tmp.key);
+      });
+
+      // If initialState provided, persist immediately (for restore path)
+      if (initialState && initialState.patternId){
+        persist();
+      }
+    }catch(e){ console.warn('persistence hook err', e); }
+  };
+
+  // Restore previously saved effects after table render
+  function ready(fn){ if (document.readyState==='complete' || document.readyState==='interactive') setTimeout(fn,0); else document.addEventListener('DOMContentLoaded', fn); }
+
+  function tryRestore(){
+    try{
+      var data = readStore();
+      if (!data.length) return true; // nothing to restore
+      var tables = document.querySelectorAll('table');
+      if (!tables.length) return false;
+
+      // For each saved effect, re-add if not already present
+      data.forEach(function(eff){
+        try{
+          // find row by index or by criterion text
+          var critRow = document.querySelector('tr[data-crit-index="'+eff.index+'"]');
+          if (!critRow){
+            // fallback by criterion text (normalized)
+            var rows = Array.from(document.querySelectorAll('tr[data-crit-index]'));
+            var target = rows.find(function(r){
+              var t = (r.children[0] && r.children[0].textContent || '').trim();
+              return norm(t) === norm(eff.criterion);
+            });
+            critRow = target || null;
+          }
+          if (!critRow) return;
+
+          // find the "+ etki" trigger near this row
+          var link = critRow.parentElement.querySelector('.effect-add[data-crit-index="'+eff.index+'"]') ||
+                     critRow.parentElement.querySelector('.effect-add');
+          if (!link) return;
+
+          // call addEffectRow with initialState to set fields + persist
+          window.addEffectRow(link, { patternId: eff.patternId, delta: eff.delta, reason: eff.reason });
+        }catch(_e){ /* ignore one item */ }
+      });
+      return true;
+    }catch(e){ console.error('restore error:', e); return true; }
+  }
+
+  ready(function(){
+    var attempts = 0;
+    var timer = setInterval(function(){
+      attempts++;
+      var done = tryRestore();
+      if (done || attempts > 20) clearInterval(timer); // ~10s max
+    }, 500);
+  });
+})();
+</script>
+
+<!-- FINALIZER v4: Clean library + robust populate + hard override of addEffectRow -->
+<script>
+(function(){
+  // run late to avoid earlier script errors
+  function onReady(fn){ if (document.readyState === 'complete' || document.readyState === 'interactive') setTimeout(fn,0); else document.addEventListener('DOMContentLoaded', fn); }
+
+  onReady(function(){
+
+    // ===== 1) Ensure library =====
+    var BASE_LIB = [
+      { id:"PROB-01", criterion:"Problemin Tanımı & İş Değeri", title:"İş değeri ölçütleri (KPI) sayısal tanımlı", polarity:"pos", defaultDelta: 2.0, minSP:0.5, tags:["kpi","değer","ölçülebilir"] },
+      { id:"PROB-02", criterion:"Problemin Tanımı & İş Değeri", title:"Problem ifadesi belirsiz/dağınık", polarity:"neg", defaultDelta:-4.0, minSP:0.5, tags:["belirsiz","amaç yok"] },
+      { id:"REQ-01", criterion:"Fonksiyonel Gereksinimler", title:"Gereksinimler test edilebilir ve atomik", polarity:"pos", defaultDelta: 2.0, minSP:0.5, tags:["test","atomik"] },
+      { id:"REQ-02", criterion:"Fonksiyonel Gereksinimler", title:"Pasif dil/tek cümlelik gereksinimler", polarity:"neg", defaultDelta:-2.5, minSP:0.5, tags:["pasif","net değil"] },
+      { id:"REQ-03", criterion:"Fonksiyonel Gereksinimler", title:"UI/iş kuralı ayrımı net", polarity:"pos", defaultDelta: 1.0, minSP:1, tags:["ayrım","temizlik"] },
+      { id:"REQ-04", criterion:"Fonksiyonel Gereksinimler", title:"Kabul kriteri yok/zayıf", polarity:"neg", defaultDelta:-4.0, minSP:0.5, tags:["acceptance","eksik"] },
+      { id:"REQ-05", criterion:"Fonksiyonel Gereksinimler", title:"Sadece mutlu akış, hata/istisna yok", polarity:"neg", defaultDelta:-3.0, minSP:1, tags:["exception","edge"] },
+      { id:"ACC-01", criterion:"Kabul Kriterleri / Testlenebilirlik", title:"GIVEN/WHEN/THEN ile örneklenmiş", polarity:"pos", defaultDelta: 2.5, minSP:0.5, tags:["gherkin","bdd"] },
+      { id:"ACC-02", criterion:"Kabul Kriterleri / Testlenebilirlik", title:"Veri varyantları eksik (pozitif/negatif)", polarity:"neg", defaultDelta:-2.0, minSP:1, tags:["varyant","edgetest"] },
+      { id:"ACC-03", criterion:"Kabul Kriterleri / Testlenebilirlik", title:"Onay koşulları ölçülebilir", polarity:"pos", defaultDelta: 1.5, minSP:1, tags:["ölçülebilir"] },
+      { id:"BUS-01", criterion:"İş Kuralları & Kısıtlar", title:"İş kuralları ayrı bölümde ve numaralı", polarity:"pos", defaultDelta: 1.5, minSP:1, tags:["kural","numara"] },
+      { id:"BUS-02", criterion:"İş Kuralları & Kısıtlar", title:"Yasal/kural dayanakları atıfsız", polarity:"neg", defaultDelta:-2.5, minSP:3, tags:["regülasyon","atıf yok"] },
+      { id:"ALT-01", criterion:"Alternatif Akışlar", title:"Hata/istisna akışları kapsanmış", polarity:"pos", defaultDelta: 1.5, minSP:3, tags:["istisna","hata"] },
+      { id:"ALT-02", criterion:"Alternatif Akışlar", title:"Kritik alternatif akış yok", polarity:"neg", defaultDelta:-2.0, minSP:3, tags:["eksik akış"] },
+      { id:"ARF-01", criterion:"Akış/Model Artefaktı", title:"Sade BPMN/Flow oluşturulmuş", polarity:"pos", defaultDelta: 1.5, minSP:5, tags:["bpmn","flow"] },
+      { id:"ARF-02", criterion:"Akış/Model Artefaktı", title:"Metin–çizim uyumsuzluğu", polarity:"neg", defaultDelta:-3.0, minSP:5, tags:["uyumsuzluk"] },
+      { id:"MDL-01", criterion:"Model/BPMN/Data Model", title:"Veri modeli + sözlük mevcut", polarity:"pos", defaultDelta: 2.0, minSP:8, tags:["data model","dictionary"] },
+      { id:"MDL-02", criterion:"Model/BPMN/Data Model", title:"Kritik varlık/alanlar tanımsız", polarity:"neg", defaultDelta:-3.0, minSP:8, tags:["eksik alan"] },
+      { id:"INT-01", criterion:"Entegrasyon & Sistemler", title:"Sistemler, arayüzler ve yönler net", polarity:"pos", defaultDelta: 2.0, minSP:8, tags:["entegrasyon","yön"] },
+      { id:"INT-02", criterion:"Entegrasyon & Sistemler", title:"Veri sözleşmesi (contract) eksik", polarity:"neg", defaultDelta:-3.0, minSP:8, tags:["contract","schema"] },
+      { id:"RSK-01", criterion:"Riskler & Bağımlılıklar", title:"Risk matrisi ve mitigasyon var", polarity:"pos", defaultDelta: 1.5, minSP:13, tags:["risk","mitigasyon"] },
+      { id:"RSK-02", criterion:"Riskler & Bağımlılıklar", title:"Bağımlılıklar/sahiplik belirsiz", polarity:"neg", defaultDelta:-2.5, minSP:8, tags:["ownership","dependency"] },
+      { id:"TRC-01", criterion:"İzlenebilirlik & Kapsam", title:"Talep ↔ Gereksinim ↔ Test izlenebilir", polarity:"pos", defaultDelta: 2.0, minSP:5, tags:["traceability"] },
+      { id:"TRC-02", criterion:"İzlenebilirlik & Kapsam", title:"ID eşleşmeleri ve referanslar eksik", polarity:"neg", defaultDelta:-2.0, minSP:5, tags:["id","referans"] },
+      { id:"IMT-01", criterion:"Etki Analizi", title:"Süreç/rol/sistem etkileri listelenmiş", polarity:"pos", defaultDelta: 1.5, minSP:5, tags:["etki","paydaş"] },
+      { id:"IMT-02", criterion:"Etki Analizi", title:"Paydaş etkileri belirsiz", polarity:"neg", defaultDelta:-2.0, minSP:5, tags:["stakeholder","belirsiz"] },
+      { id:"NFR-01", criterion:"NFR (Genel Uyum)", title:"Güvenlik/uyum başlıkları kapsanmış", polarity:"pos", defaultDelta: 1.0, minSP:3, tags:["kvkk","security"] },
+      { id:"NFR-02", criterion:"NFR (Genel Uyum)", title:"Uyum maddeleri atıfsız/eksik", polarity:"neg", defaultDelta:-2.0, minSP:3, tags:["uyum","atıf yok"] },
+      { id:"NFRM-01", criterion:"NFR (Ölçülebilir)", title:"Sayılarla hedef (SLA, latency vb.)", polarity:"pos", defaultDelta: 2.0, minSP:8, tags:["sla","ölçü"] },
+      { id:"NFRM-02", criterion:"NFR (Ölçülebilir)", title:"Ölçüsüz NFR", polarity:"neg", defaultDelta:-3.0, minSP:3, tags:["ölçüsüz","muğlak"] },
+      { id:"DOC-01", criterion:"İzlenebilirlik & Kapsam", title:"Sürüm ve değişiklik kaydı mevcut", polarity:"pos", defaultDelta: 1.0, minSP:1, tags:["versiyon","changelog"] },
+      { id:"DOC-02", criterion:"İzlenebilirlik & Kapsam", title:"Kaynak referans linkleri yok", polarity:"neg", defaultDelta:-1.5, minSP:1, tags:["kaynak yok"] },
+      { id:"UX-01", criterion:"Fonksiyonel Gereksinimler", title:"Kritik UX akışları net", polarity:"pos", defaultDelta: 1.0, minSP:3, tags:["ux","akış"] },
+      { id:"UX-02", criterion:"Fonksiyonel Gereksinimler", title:"Durum/boş ekran/hata mesajı eksik", polarity:"neg", defaultDelta:-1.5, minSP:3, tags:["empty","error"] }
+    ];
+
+    var lib = (window.PATTERN_LIBRARY && Array.isArray(window.PATTERN_LIBRARY)) ? window.PATTERN_LIBRARY.slice() : [];
+    if (lib.length < 5){
+      lib = BASE_LIB.slice();
+    } else {
+      // merge unique by id
+      var ids = new Set(lib.map(function(p){ return p.id; }));
+      BASE_LIB.forEach(function(p){ if(!ids.has(p.id)) lib.push(p); });
+    }
+    window.PATTERN_LIBRARY = lib;
+
+    // ===== 2) Helpers (no Unicode regex) =====
+    function norm(s){
+      if (s == null) return "";
+      var t = String(s).toLowerCase();
+      t = t.replace(/[^a-z0-9çğıöşü&\/() \-]+/g, ' '); // Turkish letters allowed
+      t = t.replace(/\s+/g,' ').trim();
+      return t;
+    }
+    function resolveCriterionName(label){
+      var set = new Set(window.PATTERN_LIBRARY.map(function(p){return p.criterion;}));
+      var canon = {}; Array.from(set).forEach(function(c){ canon[norm(c)] = c; });
+      var key = norm(label);
+      if (canon[key]) return canon[key];
+      var best = null;
+      Object.keys(canon).forEach(function(k){
+        if (key && (key.indexOf(k)>=0 || k.indexOf(key)>=0)) best = canon[k];
+      });
+      return best || label || "";
+    }
+    function getRelevant(criterionName, sp){
+      var cn = resolveCriterionName(criterionName);
+      var map = {'0.5':0.5,'1':1,'3':3,'5':5,'8':8,'13':13};
+      var spn = (sp!=null ? (map[String(sp)] || parseFloat(sp)) : 5) || 5;
+      var lib = window.PATTERN_LIBRARY || [];
+      var arr = lib.filter(function(p){ return (cn && p.criterion===cn) && (Number(p.minSP)<=Number(spn)); });
+      if (!arr.length) arr = lib.filter(function(p){ return (cn && p.criterion===cn); });
+      if (!arr.length) arr = lib.filter(function(p){ return Number(p.minSP)<=Number(spn); });
+      if (!arr.length) arr = lib.slice();
+      return arr;
+    }
+    function populate(selectEl, criterionName, sp, initialId){
+      var list = getRelevant(criterionName, sp);
+      selectEl.innerHTML = '<option value="">(listeden seç)</option>';
+      list.forEach(function(p){
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = '[' + (p.polarity==='pos' ? '+' : '-') + '] ' + p.id + ' — ' + p.title;
+        opt.dataset.defaultDelta = p.defaultDelta;
+        opt.dataset.polarity = p.polarity;
+        selectEl.appendChild(opt);
+      });
+      if (initialId) selectEl.value = initialId;
+    }
+
+    // ===== 3) Hard override addEffectRow and click handling =====
+    var origAdd = window.addEffectRow;
+
+    window.addEffectRow = function(linkElement, initialState){
+      try{
+        if (!linkElement) return;
+        var idx = Number(linkElement.getAttribute('data-crit-index') || '0');
+        var table = linkElement.closest('table');
+        var critRow = table ? table.querySelector('tr[data-crit-index=\"'+idx+'\"]') : null;
+        var scoreInput = critRow ? critRow.querySelector('.score-input') : null;
+        var criterionText = critRow ? ((critRow.children[0] && critRow.children[0].textContent) || '').trim() : '';
+        var currentSP = (window.State && window.State.app && window.State.app.inputs && window.State.app.inputs.sp) || 5;
+
+        var tr = document.createElement('tr');
+        tr.className = 'effect-row';
+        tr.setAttribute('data-crit-index', String(idx));
+        tr.innerHTML =
+          '<td colspan=\"4\" style=\"display:flex; align-items:center; gap:6px;\">'
+          + '<b>Etki:</b>'
+          + '<input type=\"number\" step=\"0.5\" value=\"'+(initialState ? (initialState.delta ?? -1) : -1)+'\" class=\"eff-delta\" style=\"width:70px; flex-shrink:0;\" />'
+          + '<select class=\"eff-select\" style=\"flex-shrink:0; max-width:520px\"><option value=\"\">(listeden seç)</option></select>'
+          + '<input type=\"text\" class=\"eff-note\" value=\"'+(initialState && initialState.reason ? String(initialState.reason) : '')+'\" placeholder=\"Kısa açıklama\" style=\"flex-grow:1;\" />'
+          + '<button class=\"mini-tick\" title=\"Onayla\">✓</button>'
+          + '<button class=\"mini-x\" title=\"Kaldır\">×</button>'
+          + '</td>';
+
+        var ref = critRow, next = ref ? ref.nextElementSibling : null;
+        while (next && (next.classList.contains('effect-row') || next.classList.contains('penalty-row'))) {
+          ref = next; next = next.nextElementSibling;
+        }
+        (ref || table).insertAdjacentElement('afterend', tr);
+
+        var deltaEl = tr.querySelector('.eff-delta');
+        var selectEl = tr.querySelector('.eff-select');
+        var noteEl = tr.querySelector('.eff-note');
+
+        populate(selectEl, criterionText, currentSP, initialState && initialState.patternId || "");
+
+        function recolor(row, val){
+          row.classList.remove('pos','neg');
+          if (val > 0) row.classList.add('pos'); else if (val < 0) row.classList.add('neg');
+        }
+        function num(x){ var n = parseFloat(String(x).replace(',','.')); return isFinite(n) ? n : 0; }
+
+        var last = num(deltaEl.value) || 0;
+        recolor(tr, last);
+
+        if (!initialState && scoreInput) {
+          scoreInput.value = (num(scoreInput.value || '0') + last).toFixed(1);
+          scoreInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        deltaEl.addEventListener('input', function(){
+          var val = num(deltaEl.value) || 0; recolor(tr, val);
+          var diff = val - last; last = val;
+          if (scoreInput) {
+            scoreInput.value = (num(scoreInput.value || '0') + diff).toFixed(1);
+            scoreInput.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
+
+        selectEl.addEventListener('change', function(){
+          var opt = selectEl.selectedOptions[0]; if (!opt) return;
+          var def = num(opt.dataset.defaultDelta || '0');
+          var current = num(deltaEl.value || '0');
+          if (!initialState || current === 0 || current === -1) {
+            var diff = def - last; last = def; deltaEl.value = String(def); recolor(tr, def);
+            if (scoreInput) {
+              scoreInput.value = (num(scoreInput.value || '0') + diff).toFixed(1);
+              scoreInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          }
+          if (noteEl && !noteEl.value) {
+            noteEl.value = (opt.textContent || '').replace(/^\[[+-]\]\s*\S+\s+—\s*/, '');
+          }
+        });
+
+        tr.querySelector('.mini-tick').addEventListener('click', function(){ try{ window.showToast && window.showToast('Etki satırı kaydedildi.'); }catch(_e){} });
+        tr.querySelector('.mini-x').addEventListener('click', function(){
+          if (scoreInput) {
+            scoreInput.value = (num(scoreInput.value || '0') - last).toFixed(1);
+            scoreInput.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          tr.remove();
+        });
+
+      }catch(e){ console.error('addEffectRow(v4) error:', e); alert('Etki satırı eklenirken hata: '+e.message); }
+    };
+
+    // Force our handler on clicks (capture + stopImmediatePropagation when necessary)
+    document.addEventListener('click', function(e){
+      var el = e.target && (e.target.closest ? e.target.closest('.effect-add') : null);
+      if (!el) return;
+      // prefer our version
+      try{ e.preventDefault(); }catch(_){}
+      try{ e.stopPropagation(); }catch(_){}
+      try{ e.stopImmediatePropagation && e.stopImmediatePropagation(); }catch(_){}
+      window.addEffectRow(el, null);
+    }, true);
+
+  }); // onReady
+})();
+</script>
+
+<!-- PATCH v2: Score HUD + Robust criterion matching & non-empty pattern fallback -->
+<style>
+#score-hud{
+  position: fixed; right: 16px; bottom: 16px; z-index: 9999;
+  background: #111827cc; color: #fff; backdrop-filter: blur(6px);
+  border-radius: 12px; padding: 10px 14px; box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  min-width: 160px;
+}
+#score-hud .sh-title{ font-size: 12px; opacity:.8; letter-spacing:.3px; }
+#score-hud .sh-total{ font-size: 22px; font-weight: 700; line-height: 1.2; margin-top: 2px; }
+#score-hud .sh-delta{ font-size: 12px; margin-top: 2px; opacity:.95; }
+#score-hud .sh-delta.pos{ color: #10b981; } /* green */
+#score-hud .sh-delta.neg{ color: #ef4444; } /* red */
+@keyframes shflash { 0%{transform:scale(1)} 40%{transform:scale(1.04)} 100%{transform:scale(1)} }
+#score-hud.flash{ animation: shflash 650ms ease; }
+@media (max-width: 640px){
+  #score-hud{ right: 10px; bottom: 10px; padding: 8px 10px; min-width: 140px; }
+  #score-hud .sh-total{ font-size: 18px; }
+}
+</style>
+<script>
+(function(){
+  // ===== Robust criterion normalization & fallback =====
+  function norm(s){
+    // ASCII-safe normalization (no Unicode property escapes)
+    if (s == null) return "";
+    var t = String(s).toLowerCase();
+    // retain letters, digits, space and a few punctuation chars (incl. Turkish letters)
+    t = t.replace(/[^a-z0-9çğıöşüâêîôû&\/() \-]+/g, ' ');
+    t = t.replace(/\s+/g,' ').trim();
+    return t;
+  }\p{N}&/() ]+/gu,' ')
+      .replace(/\s+/g,' ').trim();
+  }
+  function buildCanonMap(){
+    const set = new Set((window.PATTERN_LIBRARY||[]).map(p=>p.criterion));
+    const map = {};
+    Array.from(set).forEach(c=>{ map[norm(c)] = c; });
+    return map;
+  }
+  function resolveCriterionName(label){
+    const canon = buildCanonMap();
+    const key = norm(label);
+    if (canon[key]) return canon[key];
+    // fuzzy: substring match
+    let best = null;
+    Object.keys(canon).forEach(k=>{
+      if (key && (key.includes(k) || k.includes(key))) best = canon[k];
+    });
+    return best || label || ""; // may be empty; caller must handle
+  }
+
+  // override helpers with robust variant
+  window.getRelevantPatterns = function(criterionName, sp){
+    const cn = resolveCriterionName(criterionName);
+    const spNum = (typeof window.spToNumber === 'function' ? window.spToNumber(sp || (window.State?.app?.inputs?.sp)) : 5) || 5;
+    const lib = (window.PATTERN_LIBRARY || []);
+    let arr = lib.filter(p => (cn && p.criterion === cn) && (Number(p.minSP) <= Number(spNum)));
+    if (!arr.length){
+      // fallback 1: same criterion, ignore SP
+      arr = lib.filter(p => (cn && p.criterion === cn));
+    }
+    if (!arr.length){
+      // fallback 2: ignore criterion, respect SP
+      arr = lib.filter(p => Number(p.minSP) <= Number(spNum));
+    }
+    if (!arr.length){
+      // fallback 3: whole library
+      arr = lib.slice();
+    }
+    return arr;
+  };
+
+  window.populatePatternSelect = function(selectEl, criterionName, sp, initialId){
+    const list = window.getRelevantPatterns(criterionName, sp);
+    selectEl.innerHTML = '<option value="">(listeden seç)</option>';
+    list.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = '[' + (p.polarity === 'pos' ? '+' : '-') + '] ' + p.id + ' — ' + p.title;
+      opt.dataset.defaultDelta = p.defaultDelta;
+      opt.dataset.polarity = p.polarity;
+      selectEl.appendChild(opt);
+    });
+    if (initialId) selectEl.value = initialId;
+  };
+
+  // ===== Floating Score HUD =====
+  function ensureHud(){
+    if (document.getElementById('score-hud')) return document.getElementById('score-hud');
+    const hud = document.createElement('div');
+    hud.id = 'score-hud';
+    hud.innerHTML = '<div class="sh-title">Canlı Puan</div><div class="sh-total">0.0</div><div class="sh-delta">&nbsp;</div>';
+    document.body.appendChild(hud);
+    return hud;
+  }
+  const hud = ensureHud();
+  let lastTotal = null;
+
+  function toNum(x){
+    const n = parseFloat(String(x||'').replace(',','.'));
+    return isFinite(n) ? n : 0;
+  }
+  function calcTotal(){
+    let total = 0;
+    const nodes = document.querySelectorAll('.score-input');
+    nodes.forEach(n => total += toNum(n.value));
+    return Number(total.toFixed(1));
+  }
+  function renderHud(){
+    const total = calcTotal();
+    const totalEl = hud.querySelector('.sh-total');
+    const deltaEl = hud.querySelector('.sh-delta');
+    if (lastTotal === null){
+      totalEl.textContent = total.toFixed(1);
+      lastTotal = total;
+      return;
+    }
+    const diff = Number((total - lastTotal).toFixed(1));
+    if (diff !== 0){
+      totalEl.textContent = total.toFixed(1);
+      deltaEl.textContent = (diff>0?'+':'') + diff.toFixed(1);
+      deltaEl.classList.remove('pos','neg');
+      deltaEl.classList.add(diff>0 ? 'pos' : 'neg');
+      hud.classList.remove('flash'); void hud.offsetWidth; hud.classList.add('flash');
+      lastTotal = total;
+    } else {
+      totalEl.textContent = total.toFixed(1);
+      deltaEl.textContent = ' ';
+      deltaEl.classList.remove('pos','neg');
+    }
+  }
+
+  // Re-render when score inputs or effect deltas change
+  document.addEventListener('input', (e)=>{
+    const t = e.target;
+    if (!t) return;
+    if (t.classList && (t.classList.contains('score-input') || t.classList.contains('eff-delta'))) {
+      renderHud();
+    }
+  }, true);
+
+  // Also observe DOM changes (rows added/removed)
+  const mo = new MutationObserver(()=> renderHud());
+  mo.observe(document.body, { childList: true, subtree: true });
+
+  // Initial render after load
+  if (document.readyState === 'complete') { renderHud(); }
+  else window.addEventListener('load', renderHud);
+
+  // Safety: periodic refresh in case external code updates values silently
+  setInterval(renderHud, 1500);
+})();
+</script>
+override -->
+<script>
+(function(){
+  // ===== Safe helpers & guards =====
+  window.State = window.State || {};
+  const Safe = {
+    esc: (s)=> (window.State && typeof window.State.esc==='function' ? window.State.esc(s) : String(s||'').replace(/[<>&]/g, c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))),
+    toast: (m)=> (typeof window.showToast==='function' ? window.showToast(m) : (console.info('[toast]', m), void 0)),
+    markDirty: ()=> (window.AutoSaver && typeof window.AutoSaver.markDirty==='function' ? window.AutoSaver.markDirty() : void 0),
+    collect: ()=> (typeof window.collectState==='function' ? window.collectState() : { sp: 5 })
+  };
+  function ensureNumber(x){
+    const n = parseFloat(String(x).replace(',', '.')); return isFinite(n) ? n : 0;
+  }
+  if (typeof window.spToNumber !== 'function') {
+    window.spToNumber = function(sp){
+      if (typeof sp === 'number') return sp;
+      const map = {'0.5':0.5,'1':1,'3':3,'5':5,'8':8,'13':13};
+      const key = String(sp ?? '').trim();
+      return map[key] ?? ensureNumber(key) || 5;
+    };
+  }
+
+  // ===== Expanded Pattern Library (positive + negative) =====
+  if (!window.PATTERN_LIBRARY) window.PATTERN_LIBRARY = [
+    // Problemin Tanımı & İş Değeri
+    { id:"PROB-01", criterion:"Problemin Tanımı & İş Değeri", title:"İş değeri ölçütleri (KPI) sayısal tanımlı", polarity:"pos", defaultDelta: 2.0, minSP:0.5, tags:["kpi","değer","ölçülebilir"] },
+    { id:"PROB-02", criterion:"Problemin Tanımı & İş Değeri", title:"Problem ifadesi belirsiz/dağınık", polarity:"neg", defaultDelta:-4.0, minSP:0.5, tags:["belirsiz","amaç yok"] },
+    { id:"PROB-03", criterion:"Problemin Tanımı & İş Değeri", title:"Başarı ölçütleri ve hipotez net", polarity:"pos", defaultDelta: 1.5, minSP:1, tags:["başarı","hipotez"] },
+    { id:"PROB-04", criterion:"Problemin Tanımı & İş Değeri", title:"Dahil/haric kapsam sınırı yok (scope creep riski)", polarity:"neg", defaultDelta:-3.5, minSP:1, tags:["scope","kapsam"] },
+
+    // Fonksiyonel Gereksinimler
+    { id:"REQ-01", criterion:"Fonksiyonel Gereksinimler", title:"Gereksinimler test edilebilir ve atomik", polarity:"pos", defaultDelta: 2.0, minSP:0.5, tags:["test","atomik"] },
+    { id:"REQ-02", criterion:"Fonksiyonel Gereksinimler", title:"Pasif dil/tek cümlelik gereksinimler", polarity:"neg", defaultDelta:-2.5, minSP:0.5, tags:["pasif","net değil"] },
+    { id:"REQ-03", criterion:"Fonksiyonel Gereksinimler", title:"UI/iş kuralı ayrımı net", polarity:"pos", defaultDelta: 1.0, minSP:1, tags:["ayrım","temizlik"] },
+    { id:"REQ-04", criterion:"Fonksiyonel Gereksinimler", title:"Kabul kriteri yok/zayıf", polarity:"neg", defaultDelta:-4.0, minSP:0.5, tags:["acceptance","eksik"] },
+    { id:"REQ-05", criterion:"Fonksiyonel Gereksinimler", title:"Sadece mutlu akış, hata/istisna yok", polarity:"neg", defaultDelta:-3.0, minSP:1, tags:["exception","edge"] },
+
+    // Kabul Kriterleri / Testlenebilirlik
+    { id:"ACC-01", criterion:"Kabul Kriterleri / Testlenebilirlik", title:"GIVEN/WHEN/THEN ile örneklenmiş", polarity:"pos", defaultDelta: 2.5, minSP:0.5, tags:["gherkin","bdd"] },
+    { id:"ACC-02", criterion:"Kabul Kriterleri / Testlenebilirlik", title:"Veri varyantları eksik (pozitif/negatif)", polarity:"neg", defaultDelta:-2.0, minSP:1, tags:["varyant","edgetest"] },
+    { id:"ACC-03", criterion:"Kabul Kriterleri / Testlenebilirlik", title:"Onay koşulları ölçülebilir", polarity:"pos", defaultDelta: 1.5, minSP:1, tags:["ölçülebilir"] },
+
+    // İş Kuralları & Kısıtlar
+    { id:"BUS-01", criterion:"İş Kuralları & Kısıtlar", title:"İş kuralları ayrı bölümde ve numaralı", polarity:"pos", defaultDelta: 1.5, minSP:1, tags:["kural","numara"] },
+    { id:"BUS-02", criterion:"İş Kuralları & Kısıtlar", title:"Yasal/kural dayanakları atıfsız", polarity:"neg", defaultDelta:-2.5, minSP:3, tags:["regülasyon","atıf yok"] },
+
+    // Alternatif Akışlar
+    { id:"ALT-01", criterion:"Alternatif Akışlar", title:"Hata/istisna akışları kapsanmış", polarity:"pos", defaultDelta: 1.5, minSP:3, tags:["istisna","hata"] },
+    { id:"ALT-02", criterion:"Alternatif Akışlar", title:"Kritik alternatif akış yok", polarity:"neg", defaultDelta:-2.0, minSP:3, tags:["eksik akış"] },
+
+    // Akış/Model Artefaktı
+    { id:"ARF-01", criterion:"Akış/Model Artefaktı", title:"Sade BPMN/Flow oluşturulmuş", polarity:"pos", defaultDelta: 1.5, minSP:5, tags:["bpmn","flow"] },
+    { id:"ARF-02", criterion:"Akış/Model Artefaktı", title:"Metin–çizim uyumsuzluğu", polarity:"neg", defaultDelta:-3.0, minSP:5, tags:["uyumsuzluk"] },
+
+    // Model/BPMN/Data Model
+    { id:"MDL-01", criterion:"Model/BPMN/Data Model", title:"Veri modeli + sözlük mevcut", polarity:"pos", defaultDelta: 2.0, minSP:8, tags:["data model","dictionary"] },
+    { id:"MDL-02", criterion:"Model/BPMN/Data Model", title:"Kritik varlık/alanlar tanımsız", polarity:"neg", defaultDelta:-3.0, minSP:8, tags:["eksik alan"] },
+
+    // Entegrasyon & Sistemler
+    { id:"INT-01", criterion:"Entegrasyon & Sistemler", title:"Sistemler, arayüzler ve yönler net", polarity:"pos", defaultDelta: 2.0, minSP:8, tags:["entegrasyon","yön"] },
+    { id:"INT-02", criterion:"Entegrasyon & Sistemler", title:"Veri sözleşmesi (contract) eksik", polarity:"neg", defaultDelta:-3.0, minSP:8, tags:["contract","schema"] },
+
+    // Riskler & Bağımlılıklar
+    { id:"RSK-01", criterion:"Riskler & Bağımlılıklar", title:"Risk matrisi ve mitigasyon var", polarity:"pos", defaultDelta: 1.5, minSP:13, tags:["risk","mitigasyon"] },
+    { id:"RSK-02", criterion:"Riskler & Bağımlılıklar", title:"Bağımlılıklar/sahiplik belirsiz", polarity:"neg", defaultDelta:-2.5, minSP:8, tags:["ownership","dependency"] },
+
+    // İzlenebilirlik & Kapsam
+    { id:"TRC-01", criterion:"İzlenebilirlik & Kapsam", title:"Talep ↔ Gereksinim ↔ Test izlenebilir", polarity:"pos", defaultDelta: 2.0, minSP:5, tags:["traceability"] },
+    { id:"TRC-02", criterion:"İzlenebilirlik & Kapsam", title:"ID eşleşmeleri ve referanslar eksik", polarity:"neg", defaultDelta:-2.0, minSP:5, tags:["id","referans"] },
+
+    // Etki Analizi
+    { id:"IMT-01", criterion:"Etki Analizi", title:"Süreç/rol/sistem etkileri listelenmiş", polarity:"pos", defaultDelta: 1.5, minSP:5, tags:["etki","paydaş"] },
+    { id:"IMT-02", criterion:"Etki Analizi", title:"Paydaş etkileri belirsiz", polarity:"neg", defaultDelta:-2.0, minSP:5, tags:["stakeholder","belirsiz"] },
+
+    // NFR (Genel Uyum) & NFR (Ölçülebilir)
+    { id:"NFR-01", criterion:"NFR (Genel Uyum)", title:"Güvenlik/uyum başlıkları kapsanmış", polarity:"pos", defaultDelta: 1.0, minSP:3, tags:["kvkk","security"] },
+    { id:"NFR-02", criterion:"NFR (Genel Uyum)", title:"Uyum maddeleri atıfsız/eksik", polarity:"neg", defaultDelta:-2.0, minSP:3, tags:["uyum","atıf yok"] },
+    { id:"NFRM-01", criterion:"NFR (Ölçülebilir)", title:"Sayılarla hedef (SLA, latency vb.)", polarity:"pos", defaultDelta: 2.0, minSP:8, tags:["sla","ölçü"] },
+    { id:"NFRM-02", criterion:"NFR (Ölçülebilir)", title:"Ölçüsüz NFR", polarity:"neg", defaultDelta:-3.0, minSP:3, tags:["ölçüsüz","muğlak"] },
+
+    // Dokümantasyon & UX
+    { id:"DOC-01", criterion:"İzlenebilirlik & Kapsam", title:"Sürüm ve değişiklik kaydı mevcut", polarity:"pos", defaultDelta: 1.0, minSP:1, tags:["versiyon","changelog"] },
+    { id:"DOC-02", criterion:"İzlenebilirlik & Kapsam", title:"Kaynak referans linkleri yok", polarity:"neg", defaultDelta:-1.5, minSP:1, tags:["kaynak yok"] },
+    { id:"UX-01", criterion:"Fonksiyonel Gereksinimler", title:"Kritik UX akışları net", polarity:"pos", defaultDelta: 1.0, minSP:3, tags:["ux","akış"] },
+    { id:"UX-02", criterion:"Fonksiyonel Gereksinimler", title:"Durum/boş ekran/hata mesajı eksik", polarity:"neg", defaultDelta:-1.5, minSP:3, tags:["empty","error"] }
+  ];
+
+  // ===== Pattern filter helpers =====
+  window.getRelevantPatterns = function(criterionName, sp){
+    const spNum = window.spToNumber(sp || Safe.collect().sp);
+    return (window.PATTERN_LIBRARY || []).filter(p => p.criterion === criterionName && p.minSP <= spNum);
+  };
+  window.populatePatternSelect = function(selectEl, criterionName, sp, initialId){
+    selectEl.innerHTML = '<option value="">(listeden seç)</option>';
+    let list = window.getRelevantPatterns(criterionName, sp);
+    if (list.length === 0) {
+      list = (window.PATTERN_LIBRARY || []).filter(p => p.minSP <= window.spToNumber(sp || Safe.collect().sp));
+    }
+    list.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = '[' + (p.polarity === 'pos' ? '+' : '-') + '] ' + p.id + ' — ' + p.title;
+      opt.dataset.defaultDelta = p.defaultDelta;
+      opt.dataset.polarity = p.polarity;
+      selectEl.appendChild(opt);
+    });
+    if (initialId) selectEl.value = initialId;
+  };
+
+  // ===== "+ etki" row — override =====
+  window.addEffectRow = function(linkElement, initialState){
+    if (!linkElement) return;
+    const idx = Number(linkElement.getAttribute('data-crit-index') || '0');
+    const table = linkElement.closest('table');
+    const critRow = table ? table.querySelector('tr[data-crit-index="'+idx+'"]') : null;
+    const scoreInput = critRow ? critRow.querySelector('.score-input') : null;
+
+    const criterionText = critRow ? ((critRow.children[0] && critRow.children[0].textContent) || '').trim() : '';
+    const currentSP = (window.State && window.State.app && window.State.app.inputs && window.State.app.inputs.sp) || (Safe.collect().sp);
+
+    const tr = document.createElement('tr');
+    tr.className = 'effect-row';
+    tr.setAttribute('data-crit-index', String(idx));
+    tr.innerHTML =
+      '<td colspan="4" style="display:flex; align-items:center; gap:6px;">'
+      + '<b>Etki:</b>'
+      + '<input type="number" step="0.5" value="'+(initialState ? (initialState.delta ?? -1) : -1)+'" class="eff-delta" style="width:70px; flex-shrink:0;" />'
+      + '<select class="eff-select" style="flex-shrink:0; max-width:520px"><option value="">(listeden seç)</option></select>'
+      + '<input type="text" class="eff-note" value="'+(initialState ? Safe.esc(initialState.reason) : '')+'" placeholder="Kısa açıklama" style="flex-grow:1;" />'
+      + '<button class="mini-tick" title="Onayla">✓</button>'
+      + '<button class="mini-x" title="Kaldır">×</button>'
+      + '</td>';
+
+    // place after existing effect/penalty rows
+    let ref = critRow;
+    let next = ref ? ref.nextElementSibling : null;
+    while (next && (next.classList.contains('effect-row') || next.classList.contains('penalty-row'))) {
+      ref = next; next = next.nextElementSibling;
+    }
+    (ref || table).insertAdjacentElement('afterend', tr);
+
+    const deltaEl = tr.querySelector('.eff-delta');
+    const selectEl = tr.querySelector('.eff-select');
+    const noteEl = tr.querySelector('.eff-note');
+
+    // Fill pattern options by criterion + SP
+    window.populatePatternSelect(selectEl, criterionText, currentSP, initialState && initialState.patternId || "");
+
+    // Visual polarity
+    function recolor(row, val){
+      row.classList.remove('pos','neg');
+      if (val > 0) row.classList.add('pos'); else if (val < 0) row.classList.add('neg');
+    }
+
+    // Init
+    let last = ensureNumber(deltaEl.value) || 0;
+    recolor(tr, last);
+
+    // Apply initial delta to score if row is new
+    if (!initialState && scoreInput) {
+      scoreInput.value = (ensureNumber(scoreInput.value || '0') + last).toFixed(1);
+      scoreInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    deltaEl.addEventListener('input', () => {
+      const val = ensureNumber(deltaEl.value) || 0;
+      recolor(tr, val);
+      const diff = val - last;
+      last = val;
+      if (scoreInput) {
+        scoreInput.value = (ensureNumber(scoreInput.value || '0') + diff).toFixed(1);
+        scoreInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      Safe.markDirty();
+    });
+
+    // Pattern chosen → suggest default delta and note
+    selectEl.addEventListener('change', () => {
+      const opt = selectEl.selectedOptions[0];
+      if (!opt) return;
+      const def = ensureNumber(opt.dataset.defaultDelta || '0');
+
+      const current = ensureNumber(deltaEl.value || '0');
+      if (!initialState || current === 0 || current === -1) {
+        const diff = def - last;
+        last = def;
+        deltaEl.value = String(def);
+        recolor(tr, def);
+        if (scoreInput) {
+          scoreInput.value = (ensureNumber(scoreInput.value || '0') + diff).toFixed(1);
+          scoreInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+
+      if (noteEl && !noteEl.value) {
+        noteEl.value = (opt.textContent || '').replace(/^\[[+-]\]\s*\S+\s+—\s*/, '');
+      }
+      Safe.markDirty();
+    });
+
+    noteEl.addEventListener('input', () => Safe.markDirty());
+
+    tr.querySelector('.mini-tick').addEventListener('click', () => {
+      Safe.toast("Etki satırı kaydedildi.");
+    });
+
+    tr.querySelector('.mini-x').addEventListener('click', () => {
+      if (scoreInput) {
+        scoreInput.value = (ensureNumber(scoreInput.value || '0') - last).toFixed(1);
+        scoreInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      tr.remove();
+      Safe.markDirty();
+    });
+  };
+
+  // (Optional) Ensure "+ etki" triggers are bound — only if not already bound elsewhere
+  document.addEventListener('click', function(e){
+    const a = e.target && (e.target.closest && e.target.closest('.effect-add'));
+    if (a && !a.dataset.boundByPatch) {
+      a.dataset.boundByPatch = '1';
+      e.preventDefault();
+      window.addEffectRow(a, null);
+    }
+  }, { capture: true });
+
+}catch(e){ try{ console.error('PATCH INIT ERROR', e); alert('Patch init error: '+(e && e.message ? e.message : e)); }catch(_e){} }})();</script>
